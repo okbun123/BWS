@@ -1,0 +1,2447 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>야구 커리어 룰렛 시뮬레이터</title>
+  <style>
+    :root {
+      --bg: #f2eee6;
+      --paper: #fffaf0;
+      --paper-2: #f8f0e2;
+      --ink: #172233;
+      --muted: #65717f;
+      --line: rgba(23, 34, 51, 0.15);
+      --navy: #183253;
+      --red: #c64237;
+      --green: #1f704f;
+      --gold: #d5a13c;
+      --clay: #a76543;
+      --blue: #376f9d;
+      --shadow: 0 18px 42px rgba(23, 34, 51, 0.13);
+      font-family: "Pretendard", "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+      color: var(--ink);
+      background: var(--bg);
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background:
+        linear-gradient(120deg, rgba(31, 112, 79, 0.13), transparent 34%),
+        linear-gradient(240deg, rgba(198, 66, 55, 0.11), transparent 35%),
+        var(--bg);
+    }
+    button, input, select { font: inherit; }
+    button { cursor: pointer; }
+    h1, h2, h3, p { margin: 0; }
+    h1 { font-size: clamp(2rem, 5vw, 4.7rem); line-height: 0.96; letter-spacing: 0; }
+    h2 { font-size: 1.06rem; letter-spacing: 0; }
+    h3 { color: var(--muted); font-size: 0.82rem; letter-spacing: 0; }
+
+    .app-shell { width: min(1600px, 100%); min-height: 100vh; margin: 0 auto; padding: 22px; }
+    .screen { min-height: calc(100vh - 44px); }
+    .is-hidden { display: none !important; }
+    .panel { min-width: 0; background: rgba(255,250,240,0.95); border: 1px solid var(--line); border-radius: 8px; box-shadow: var(--shadow); }
+    .brand-lockup, .top-bar, .board-head, .range-head, .result-title { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .brand-lockup { justify-content: flex-start; min-width: 0; }
+    .mark {
+      position: relative; display: grid; place-items: center; width: 54px; height: 54px; flex: 0 0 auto;
+      color: #fff; background: var(--red); border: 3px solid #fff; border-radius: 50%; font-weight: 950;
+      box-shadow: 0 10px 24px rgba(198, 66, 55, 0.25);
+    }
+    .mark::before, .mark::after {
+      content: ""; position: absolute; top: 7px; width: 4px; height: 34px; border-left: 2px solid rgba(255,255,255,0.9);
+      border-right: 2px solid rgba(255,255,255,0.9); border-radius: 999px;
+    }
+    .mark::before { left: 10px; transform: rotate(-18deg); }
+    .mark::after { right: 10px; transform: rotate(18deg); }
+    .subtitle { margin-top: 7px; color: #404b58; line-height: 1.52; }
+
+    .setup-screen { display: grid; align-content: center; gap: 22px; }
+    .setup-grid { display: grid; grid-template-columns: minmax(320px, 0.9fr) minmax(400px, 1.1fr); gap: 18px; align-items: stretch; }
+    .setup-panel, .board { padding: 16px; }
+    .form-grid { display: grid; gap: 14px; }
+    .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .field-row { display: grid; gap: 7px; }
+    label { color: #344152; font-size: 0.82rem; font-weight: 850; }
+    input, select {
+      width: 100%; min-height: 44px; padding: 10px 12px; color: var(--ink); background: #fffdf7;
+      border: 1px solid rgba(23, 34, 51, 0.22); border-radius: 6px; outline: none;
+    }
+    input:focus, select:focus { border-color: var(--red); box-shadow: 0 0 0 3px rgba(198, 66, 55, 0.14); }
+    input[type="range"] { min-height: 24px; padding: 0; accent-color: var(--red); background: transparent; border: 0; box-shadow: none; }
+    .segment {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 8px; padding: 4px;
+      background: rgba(24, 50, 83, 0.08); border: 1px solid rgba(24, 50, 83, 0.1); border-radius: 8px;
+    }
+    .segment button { min-height: 40px; color: #3b4654; background: transparent; border: 0; border-radius: 6px; font-weight: 900; }
+    .segment button.is-active { color: #fff; background: var(--navy); box-shadow: 0 8px 18px rgba(24, 50, 83, 0.18); }
+    .primary-btn, .secondary-btn, .ghost-btn {
+      display: inline-flex; align-items: center; justify-content: center; min-height: 44px; padding: 10px 15px;
+      border: 1px solid transparent; border-radius: 7px; font-weight: 950; letter-spacing: 0;
+      transition: transform 140ms ease, box-shadow 140ms ease, opacity 140ms ease;
+    }
+    .primary-btn { width: 100%; color: #fff; background: var(--red); box-shadow: 0 12px 26px rgba(198, 66, 55, 0.24); }
+    .secondary-btn { color: #fff; background: var(--navy); }
+    .ghost-btn { color: var(--navy); background: rgba(255, 255, 255, 0.72); border-color: var(--line); }
+    .primary-btn:hover, .secondary-btn:hover, .ghost-btn:hover { transform: translateY(-1px); }
+    .primary-btn:disabled, .secondary-btn:disabled, .ghost-btn:disabled { cursor: not-allowed; opacity: 0.58; transform: none; box-shadow: none; }
+
+    .field-panel {
+      position: relative; min-height: 540px; padding: 22px; overflow: hidden; color: #fff;
+      background: radial-gradient(circle at 50% 78%, rgba(242,238,230,0.92) 0 4%, transparent 4.2%),
+        conic-gradient(from 45deg at 50% 78%, var(--green) 0 25%, var(--clay) 0 50%, var(--green) 0 75%, var(--clay) 0 100%);
+      border: 1px solid rgba(20,81,60,0.4); border-radius: 8px; box-shadow: var(--shadow);
+    }
+    .field-panel::before {
+      content: ""; position: absolute; inset: 16% 22% auto; height: 38%; border: 3px solid rgba(255,250,240,0.62);
+      border-bottom: 0; border-radius: 52% 52% 0 0;
+    }
+    .field-panel::after {
+      content: ""; position: absolute; left: 50%; bottom: 13%; width: 42%; aspect-ratio: 1; background: rgba(167,101,67,0.9);
+      border: 3px solid rgba(255,250,240,0.75); transform: translateX(-50%) rotate(45deg);
+    }
+    .field-content { position: relative; z-index: 1; display: grid; gap: 16px; max-width: 580px; align-content: start; }
+    .field-card { padding: 16px; color: var(--ink); background: rgba(255,250,240,0.92); border: 1px solid rgba(255,255,255,0.45); border-radius: 8px; backdrop-filter: blur(10px); }
+
+    .career-screen { display: grid; gap: 16px; align-content: start; }
+    .top-bar { position: sticky; top: 0; z-index: 5; padding: 10px 0; background: rgba(242,238,230,0.88); backdrop-filter: blur(12px); }
+    .top-title { min-width: 0; }
+    .top-title h1 { overflow-wrap: anywhere; font-size: clamp(1.65rem, 3vw, 2.55rem); }
+    .top-title p { margin-top: 4px; color: var(--muted); }
+    .top-actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+    .dashboard-grid { display: grid; grid-template-columns: minmax(270px, 0.74fr) minmax(560px, 1.48fr) minmax(360px, 0.96fr); gap: 14px; align-items: start; }
+    .dashboard-grid > *, .stack { min-width: 0; }
+    .stack { display: grid; gap: 14px; }
+    .wide { grid-column: 1 / -1; }
+    .settlement-board { display: none; grid-column: 1 / -1; }
+    .career-screen.review-mode .player-stack,
+    .career-screen.review-mode .roulette-board,
+    .career-screen.review-mode .side-stack { display: none; }
+    .career-screen.review-mode .settlement-board { display: block; }
+    .career-screen:not(.review-mode) .season-summary-panel,
+    .career-screen:not(.review-mode) .career-total-panel { display: none; }
+
+    .pill { display: inline-flex; align-items: center; min-height: 28px; padding: 5px 9px; color: #fff; background: var(--navy); border-radius: 999px; font-size: 0.74rem; font-weight: 950; white-space: nowrap; }
+    .pill.gold { color: #2d2614; background: var(--gold); }
+    .pill.dark { color: #fff; background: #343a42; }
+    .rating-plate { display: grid; grid-template-columns: 86px 1fr; gap: 13px; align-items: center; margin-bottom: 12px; }
+    .overall-circle {
+      display: grid; place-items: center; width: 86px; aspect-ratio: 1; color: #fff; background: var(--green);
+      border: 7px solid #fff; border-radius: 50%; font-size: 1.75rem; font-weight: 950;
+      box-shadow: inset 0 0 0 2px rgba(255,255,255,0.28), 0 10px 22px rgba(20,81,60,0.2);
+    }
+    .big-stat { display: grid; gap: 4px; min-width: 0; }
+    .big-stat span { color: var(--muted); font-size: 0.78rem; font-weight: 850; }
+    .big-stat strong { overflow-wrap: anywhere; font-size: 1.28rem; }
+    .metric-grid, .info-grid, .stat-grid { display: grid; gap: 8px; }
+    .metric-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .info-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); margin-top: 12px; }
+    .stat-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); margin-top: 10px; }
+    .metric, .stat-cell, .step-item, .candidate, .award-chip, .change-row {
+      min-width: 0; padding: 10px; background: rgba(255,255,255,0.62); border: 1px solid rgba(23,34,51,0.08); border-radius: 7px;
+    }
+    .metric span, .stat-cell span, .candidate span, .change-row span { display: block; color: var(--muted); font-size: 0.7rem; font-weight: 900; }
+    .metric strong, .stat-cell strong, .candidate strong, .change-row strong { display: block; margin-top: 4px; overflow-wrap: anywhere; font-size: 1rem; }
+    .bars { display: grid; gap: 9px; margin-top: 14px; }
+    .bar-row { display: grid; grid-template-columns: 72px 1fr 34px; gap: 8px; align-items: center; font-size: 0.8rem; font-weight: 850; }
+    .bar-track { height: 9px; overflow: hidden; background: rgba(24,50,83,0.12); border-radius: 999px; }
+    .bar-fill { width: var(--w); height: 100%; background: linear-gradient(90deg, var(--green), var(--gold)); border-radius: inherit; }
+
+    .roulette-board { padding: 18px; }
+    .roulette-area { display: grid; gap: 14px; justify-items: center; text-align: center; }
+    .wheel-stage { position: relative; display: grid; place-items: center; width: min(590px, 92vw); aspect-ratio: 1; margin: 4px auto 0; }
+    .pointer { position: absolute; top: -3px; z-index: 3; width: 0; height: 0; border-left: 18px solid transparent; border-right: 18px solid transparent; border-top: 36px solid var(--red); filter: drop-shadow(0 5px 4px rgba(0,0,0,0.18)); }
+    .roulette-wheel {
+      width: 100%; aspect-ratio: 1; border: 10px solid #fff; border-radius: 50%; overflow: hidden; background: #fff;
+      box-shadow: inset 0 0 0 2px rgba(23,34,51,0.22), 0 24px 48px rgba(23,34,51,0.18);
+      transform: rotate(var(--spin, 0deg)); transition: transform 1550ms cubic-bezier(0.12, 0.76, 0.17, 1);
+    }
+    .roulette-wheel svg { width: 100%; height: 100%; display: block; }
+    .wheel-label { fill: #fff; paint-order: stroke; stroke: rgba(23,34,51,0.58); stroke-width: 3px; stroke-linejoin: round; font-weight: 950; letter-spacing: 0; }
+    .wheel-center {
+      position: absolute; display: grid; place-items: center; width: 32%; min-width: 140px; aspect-ratio: 1; padding: 14px;
+      color: var(--ink); background: var(--paper); border: 7px solid #fff; border-radius: 50%;
+      box-shadow: 0 12px 26px rgba(23,34,51,0.18); font-weight: 950; line-height: 1.18; overflow-wrap: anywhere;
+    }
+    .candidate-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(148px, 1fr)); gap: 8px; width: 100%; max-height: 168px; overflow: auto; padding-right: 2px; text-align: left; }
+    .candidate { position: relative; padding-left: 14px; }
+    .candidate::before { content: ""; position: absolute; inset: 10px auto 10px 5px; width: 4px; border-radius: 999px; background: var(--candidate-color); }
+    .candidate small { display: block; margin-top: 4px; color: var(--muted); font-weight: 750; line-height: 1.35; }
+    .play-actions { display: grid; grid-template-columns: 1fr auto; gap: 8px; width: min(660px, 100%); }
+    .result-panel { display: none; width: 100%; min-height: 116px; padding: 14px; text-align: left; background: rgba(255,255,255,0.58); border: 1px solid rgba(23,34,51,0.1); border-radius: 8px; }
+    .result-panel strong { display: block; margin-bottom: 6px; font-size: 1.04rem; }
+    .result-panel p { color: #3d4856; line-height: 1.48; }
+
+    .step-list { display: grid; gap: 8px; }
+    .step-item { display: grid; grid-template-columns: 28px 1fr; gap: 8px; align-items: center; background: rgba(255,255,255,0.5); }
+    .step-dot { display: grid; place-items: center; width: 28px; height: 28px; color: var(--muted); background: rgba(24,50,83,0.08); border-radius: 50%; font-size: 0.72rem; font-weight: 950; }
+    .step-item.is-active { border-color: rgba(198,66,55,0.34); background: rgba(198,66,55,0.08); }
+    .step-item.is-active .step-dot { color: #fff; background: var(--red); }
+    .step-item.is-done .step-dot { color: #fff; background: var(--green); }
+    .timeline { display: grid; gap: 8px; max-height: 260px; overflow: auto; padding-right: 3px; }
+    .log-item { padding: 10px; background: rgba(255,255,255,0.58); border: 1px solid rgba(23,34,51,0.08); border-radius: 7px; font-size: 0.84rem; line-height: 1.45; }
+    .awards, .changes { display: grid; gap: 8px; margin-top: 10px; }
+    .awards { grid-template-columns: repeat(auto-fit, minmax(136px, 1fr)); }
+    .award-chip { color: #2d2614; background: rgba(213,161,60,0.62); font-weight: 900; }
+    .changes { grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); }
+    .review-tabs { display: flex; gap: 8px; flex-wrap: wrap; margin: 12px 0; }
+    .review-tabs button, .team-row, .continue-review-btn {
+      min-height: 38px; padding: 9px 12px; color: var(--navy); background: rgba(255,255,255,0.72);
+      border: 1px solid rgba(23,34,51,0.12); border-radius: 7px; font-weight: 900;
+    }
+    .review-tabs button.is-active, .team-row.is-active { color: #fff; background: var(--navy); }
+    .settlement-hero { display: grid; gap: 12px; padding: 14px; background: rgba(255,255,255,0.56); border: 1px solid rgba(23,34,51,0.09); border-radius: 8px; }
+    .settlement-hero h2 { font-size: clamp(1.6rem, 3vw, 2.5rem); }
+    .settlement-actions { display: flex; justify-content: flex-end; margin-top: 14px; }
+    .continue-review-btn { color: #fff; background: var(--red); border-color: transparent; }
+    .career-browser { display: grid; grid-template-columns: minmax(220px, 0.8fr) minmax(0, 1.4fr); gap: 12px; align-items: start; }
+    .team-list, .team-detail, .season-detail-list { display: grid; gap: 8px; }
+    .team-row { display: grid; gap: 3px; width: 100%; text-align: left; }
+    .team-row span, .season-detail span { color: var(--muted); font-size: 0.74rem; font-weight: 800; }
+    .season-detail { padding: 11px; background: rgba(255,255,255,0.62); border: 1px solid rgba(23,34,51,0.09); border-radius: 7px; }
+    .season-detail strong { display: block; margin-bottom: 4px; }
+    .history-table-wrap { max-width: 100%; overflow-x: auto; }
+    table { width: 100%; min-width: 1180px; border-collapse: collapse; font-size: 0.82rem; }
+    th, td { padding: 9px 8px; border-bottom: 1px solid rgba(23,34,51,0.1); text-align: left; white-space: nowrap; }
+    th { color: var(--muted); font-size: 0.72rem; letter-spacing: 0; text-transform: uppercase; }
+    .empty-state { padding: 12px; color: var(--muted); background: rgba(255,255,255,0.48); border-radius: 7px; line-height: 1.45; }
+    @media (max-width: 1220px) {
+      .setup-grid, .dashboard-grid { grid-template-columns: 1fr; }
+      .field-panel { min-height: 430px; }
+      .dashboard-grid .stack { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .roulette-board { order: -1; }
+    }
+    @media (max-width: 720px) {
+      .app-shell { padding: 14px; }
+      .screen { min-height: calc(100vh - 28px); }
+      .brand-lockup, .top-bar, .top-actions, .result-title { align-items: stretch; flex-direction: column; }
+      .brand-lockup { align-items: flex-start; }
+      .mark { width: 48px; height: 48px; }
+      .two-col, .info-grid, .metric-grid, .stat-grid, .play-actions, .dashboard-grid .stack { grid-template-columns: 1fr; }
+      .career-browser { grid-template-columns: 1fr; }
+      .field-panel { min-height: 360px; padding: 16px; }
+      .rating-plate { grid-template-columns: 74px 1fr; }
+      .overall-circle { width: 74px; font-size: 1.45rem; }
+      .bar-row { grid-template-columns: 62px 1fr 28px; }
+      .wheel-stage { width: min(440px, 94vw); }
+    }
+  </style>
+</head>
+<body>
+  <main class="app-shell">
+    <section id="setupScreen" class="screen setup-screen">
+      <div class="brand-lockup">
+        <div class="mark" aria-hidden="true">B</div>
+        <div>
+          <h1>야구 커리어 룰렛</h1>
+          <p class="subtitle">능력치부터 첫 소속, 하위리그 승격과 강등, 포스트시즌, 수상, 은퇴까지 굴러가는 커리어 시뮬레이터입니다.</p>
+        </div>
+      </div>
+
+      <div class="setup-grid">
+        <form id="playerForm" class="panel setup-panel" autocomplete="off">
+          <div class="form-grid">
+            <div class="two-col">
+              <div class="field-row">
+                <label for="playerName">이름</label>
+                <input id="playerName" maxlength="18" value="김루키" required />
+              </div>
+              <div class="field-row">
+                <label for="nationality">국적</label>
+                <input id="nationality" maxlength="18" value="대한민국" required />
+              </div>
+            </div>
+            <div class="field-row">
+              <label>타입</label>
+              <div class="segment" id="roleSegment" role="radiogroup" aria-label="선수 타입">
+                <button type="button" class="is-active" data-role="hitter" aria-pressed="true">타자</button>
+                <button type="button" data-role="pitcher" aria-pressed="false">투수</button>
+              </div>
+            </div>
+            <div class="field-row">
+              <label for="amateurType">출신 유형</label>
+              <select id="amateurType">
+                <option value="high">고졸선수</option>
+                <option value="college">대졸선수</option>
+              </select>
+            </div>
+            <div class="two-col">
+              <div class="field-row">
+                <label for="position">포지션</label>
+                <select id="position"></select>
+              </div>
+              <div class="field-row">
+                <label for="archetype">성향</label>
+                <select id="archetype"></select>
+              </div>
+            </div>
+            <div class="two-col">
+              <div class="field-row">
+                <label for="startSystem">시작 리그</label>
+                <select id="startSystem">
+                  <option value="KBO">KBO</option>
+                  <option value="NPB">NPB</option>
+                  <option value="MLB">MLB</option>
+                  <option value="ALL">전체</option>
+                </select>
+              </div>
+              <div class="field-row">
+                <label for="handedness">스타일</label>
+                <select id="handedness">
+                  <option>우투우타</option>
+                  <option>우투좌타</option>
+                  <option>좌투좌타</option>
+                  <option>좌투우타</option>
+                  <option>스위치히터</option>
+                </select>
+              </div>
+            </div>
+            <div class="two-col">
+              <button class="primary-btn" type="submit">커리어 시작</button>
+              <button class="ghost-btn is-hidden" id="loadCareerBtn" type="button">불러오기</button>
+            </div>
+          </div>
+        </form>
+
+        <aside class="field-panel" aria-label="시뮬레이션 안내">
+          <div class="field-content">
+            <div class="field-card">
+              <h2 id="previewTitle">김루키, 타자 유망주</h2>
+              <p class="subtitle" id="previewCopy">게임을 시작하면 능력치 룰렛을 먼저 돌립니다. 능력치는 40부터 70까지 결정됩니다.</p>
+              <div class="info-grid" id="prospectPreview"></div>
+            </div>
+            <div class="field-card">
+              <h2>하위리그</h2>
+              <p class="subtitle">MLB는 루키, A, 하이A, 더블A, 트리플A, MLB 순서로 이동합니다. KBO 퓨처스는 12팀 규모, NPB 팜은 14팀 규모로 계산하고, 피닉스 리그는 시즌 후 성장 이벤트로 반영됩니다.</p>
+            </div>
+          </div>
+        </aside>
+      </div>
+    </section>
+
+    <section id="careerScreen" class="screen career-screen is-hidden">
+      <header class="top-bar">
+        <div class="brand-lockup">
+          <div class="mark" aria-hidden="true">B</div>
+          <div class="top-title">
+            <h1 id="careerTitle">야구 커리어 룰렛</h1>
+            <p id="careerSubtitle">능력치 룰렛부터 시작하세요.</p>
+          </div>
+        </div>
+        <div class="top-actions">
+          <button class="ghost-btn" id="saveBtn" type="button">저장</button>
+          <button class="ghost-btn" id="resetBtn" type="button">새 커리어</button>
+        </div>
+      </header>
+
+      <div class="dashboard-grid">
+        <div class="stack player-stack">
+          <section class="panel board">
+            <div class="board-head">
+              <h2>선수 카드</h2>
+              <span class="pill gold" id="careerYear">Rookie</span>
+            </div>
+            <div class="rating-plate">
+              <div class="overall-circle" id="overallValue">--</div>
+              <div class="big-stat">
+                <span>시장 가치</span>
+                <strong id="valueText">-</strong>
+                <span id="teamText">능력치 결정 전</span>
+              </div>
+            </div>
+            <div class="metric-grid" id="identityGrid"></div>
+            <div class="bars" id="skillBars"></div>
+          </section>
+
+          <section class="panel board">
+            <div class="board-head">
+              <h2>커리어 로그</h2>
+              <span class="pill" id="logCount">0</span>
+            </div>
+            <div class="timeline" id="timeline"></div>
+          </section>
+        </div>
+
+        <section class="panel board roulette-board" id="rouletteBoard">
+          <div class="board-head">
+            <h2>룰렛</h2>
+            <span class="pill" id="rouletteMode">능력치</span>
+          </div>
+          <div class="roulette-area">
+            <div class="wheel-stage">
+              <div class="pointer" aria-hidden="true"></div>
+              <div class="roulette-wheel" id="rouletteWheel"></div>
+              <div class="wheel-center" id="wheelCenter">대기 중</div>
+            </div>
+            <div class="candidate-grid" id="candidateGrid"></div>
+            <div class="play-actions">
+              <button class="primary-btn" id="mainSpinBtn" type="button">능력치 룰렛</button>
+              <button class="secondary-btn" id="contractBtn" type="button">계약 룰렛</button>
+            </div>
+            <div class="result-panel" id="resultPanel">
+              <strong>룰렛 조각이 클수록 걸릴 가능성이 큽니다.</strong>
+              <p>숫자 확률 대신 조각 크기로 가중치를 보여줍니다. 후보표는 항목을 읽기 쉽게 보여주는 용도입니다.</p>
+            </div>
+          </div>
+        </section>
+
+        <div class="stack side-stack">
+          <section class="panel board season-progress-panel">
+            <div class="board-head">
+              <h2>시즌 진행</h2>
+              <span class="pill" id="stageTag">대기</span>
+            </div>
+            <div class="step-list" id="stepList"></div>
+          </section>
+
+          <section class="panel board season-summary-panel">
+            <div class="board-head">
+              <h2>결산 화면</h2>
+              <span class="pill" id="seasonTag">없음</span>
+            </div>
+            <div id="seasonSummary">
+              <p class="empty-state">아직 기록된 시즌이 없습니다.</p>
+            </div>
+          </section>
+
+          <section class="panel board career-total-panel">
+            <div class="board-head">
+              <h2>누적 기록</h2>
+              <span class="pill" id="careerSpan">0시즌</span>
+            </div>
+            <div class="stat-grid" id="careerTotals"></div>
+          </section>
+        </div>
+
+        <section class="panel board settlement-board is-hidden" id="settlementBoard">
+          <div class="board-head">
+            <h2>시즌 결산</h2>
+            <span class="pill gold" id="settlementTag">Review</span>
+          </div>
+          <div id="settlementBody"></div>
+        </section>
+
+        <section class="panel board wide">
+          <div class="board-head">
+            <h2>커리어 히스토리</h2>
+            <span class="pill" id="historyCount">0시즌</span>
+          </div>
+          <div class="history-table-wrap">
+            <table>
+              <thead id="historyHead"></thead>
+              <tbody id="historyBody"></tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const qs = (selector) => document.querySelector(selector);
+    const qsa = (selector) => Array.from(document.querySelectorAll(selector));
+    const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
+    const rnd = (min, max) => Math.random() * (max - min) + min;
+    const int = (min, max) => Math.floor(rnd(min, max + 1));
+    const round1 = (value) => Math.round(value * 10) / 10;
+    const STORAGE_KEY = "baseball-career-roulette-v3";
+    const colors = ["#c64237", "#d5a13c", "#1f704f", "#183253", "#a76543", "#376f9d", "#74536f", "#60823b", "#b65d76", "#4c8190", "#9c7c38", "#455c88", "#a94c3c", "#2e765c", "#805f99"];
+
+    const positionOptions = {
+      hitter: ["포수", "1루수", "2루수", "3루수", "유격수", "좌익수", "중견수", "우익수", "지명타자"],
+      pitcher: ["선발투수", "불펜투수", "마무리투수"]
+    };
+    const archetypeOptions = {
+      hitter: ["밸런스형", "컨택형", "파워형", "스피드형", "수비형"],
+      pitcher: ["파워피처", "제구형", "이닝이터", "땅볼유도형", "마무리형"]
+    };
+    const skillLabels = { contact: "컨택", power: "파워", speed: "주루", defense: "수비", stuff: "구위", command: "제구", stamina: "체력" };
+    const systemNames = { KBO: "KBO", MLB: "MLB", NPB: "NPB" };
+
+    const levelInfo = {
+      KBO: { key: "KBO", label: "KBO 1군", quality: 60, games: 144, rankCount: 10, playoffCut: 5, runEnv: 1.02 },
+      KBO_FUT: { key: "KBO_FUT", label: "KBO 퓨처스리그", quality: 46, games: 116, rankCount: 12, playoffCut: 0, runEnv: 1.03 },
+      MLB: { key: "MLB", label: "MLB", quality: 82, games: 162, rankCount: 15, playoffCut: 6, runEnv: 1 },
+      AAA: { key: "AAA", label: "트리플A", quality: 66, games: 150, rankCount: 30, playoffCut: 8, runEnv: 1.04 },
+      AA: { key: "AA", label: "더블A", quality: 57, games: 138, rankCount: 30, playoffCut: 8, runEnv: 1.01 },
+      APLUS: { key: "APLUS", label: "하이A", quality: 50, games: 132, rankCount: 30, playoffCut: 8, runEnv: 1.02 },
+      A: { key: "A", label: "싱글A", quality: 44, games: 132, rankCount: 30, playoffCut: 8, runEnv: 1.03 },
+      RK: { key: "RK", label: "루키리그", quality: 36, games: 60, rankCount: 30, playoffCut: 0, runEnv: 1.08 },
+      NPB: { key: "NPB", label: "NPB 1군", quality: 70, games: 143, rankCount: 6, playoffCut: 3, runEnv: 0.94 },
+      NPB_FARM: { key: "NPB_FARM", label: "NPB 팜리그", quality: 54, games: 120, rankCount: 14, playoffCut: 0, runEnv: 0.96 }
+    };
+    const levelOrder = {
+      MLB: ["RK", "A", "APLUS", "AA", "AAA", "MLB"],
+      KBO: ["KBO_FUT", "KBO"],
+      NPB: ["NPB_FARM", "NPB"]
+    };
+
+    const kboOrgs = [
+      ["KIA", "KIA 타이거즈", "KIA 타이거즈 퓨처스", 78, 78],
+      ["SAM", "삼성 라이온즈", "삼성 라이온즈 퓨처스", 72, 74],
+      ["LG", "LG 트윈스", "LG 트윈스 퓨처스", 80, 84],
+      ["DOO", "두산 베어스", "두산 베어스 퓨처스", 69, 76],
+      ["KT", "kt wiz", "kt wiz 퓨처스", 67, 66],
+      ["SSG", "SSG 랜더스", "SSG 랜더스 퓨처스", 66, 72],
+      ["LOT", "롯데 자이언츠", "롯데 자이언츠 퓨처스", 63, 78],
+      ["HAN", "한화 이글스", "한화 이글스 퓨처스", 61, 67],
+      ["NC", "NC 다이노스", "NC 다이노스 퓨처스", 65, 66],
+      ["KIW", "키움 히어로즈", "키움 히어로즈 퓨처스", 54, 53]
+    ].map(([id, name, futures, strength, market]) => ({ system: "KBO", id, name, strength, market, affiliates: { KBO: name, KBO_FUT: futures } }));
+
+    const npbOrgs = [
+      ["HAN", "한신 타이거스", "한신 타이거스 팜", "센트럴", 84, 88],
+      ["DB", "요코하마 DeNA 베이스타스", "DeNA 베이스타스 팜", "센트럴", 75, 78],
+      ["YOM", "요미우리 자이언츠", "요미우리 자이언츠 팜", "센트럴", 79, 94],
+      ["CHU", "주니치 드래곤즈", "주니치 드래곤즈 팜", "센트럴", 63, 70],
+      ["HIR", "히로시마 도요 카프", "히로시마 카프 팜", "센트럴", 68, 74],
+      ["YAK", "도쿄 야쿠르트 스왈로즈", "야쿠르트 스왈로즈 팜", "센트럴", 64, 76],
+      ["SB", "후쿠오카 소프트뱅크 호크스", "소프트뱅크 호크스 팜", "퍼시픽", 86, 92],
+      ["HAM", "홋카이도 닛폰햄 파이터스", "닛폰햄 파이터스 팜", "퍼시픽", 77, 78],
+      ["ORI", "오릭스 버팔로즈", "오릭스 버팔로즈 팜", "퍼시픽", 76, 78],
+      ["RAK", "도호쿠 라쿠텐 골든이글스", "라쿠텐 골든이글스 팜", "퍼시픽", 65, 70],
+      ["SEI", "사이타마 세이부 라이온즈", "세이부 라이온즈 팜", "퍼시픽", 62, 68],
+      ["LOT", "지바 롯데 마린스", "롯데 마린스 팜", "퍼시픽", 66, 72]
+    ].map(([id, name, farm, division, strength, market]) => ({ system: "NPB", id, name, division, strength, market, affiliates: { NPB: name, NPB_FARM: farm } }));
+
+    const mlbOrgs = [
+      ["BAL", "볼티모어 오리올스", "AL East", 76, 78, ["노퍽 타이즈", "체서피크 베이삭스", "애버딘 아이언버즈", "델마바 쇼어버즈"]],
+      ["BOS", "보스턴 레드삭스", "AL East", 74, 90, ["우스터 레드삭스", "포틀랜드 시독스", "그린빌 드라이브", "세일럼 레드삭스"]],
+      ["NYY", "뉴욕 양키스", "AL East", 83, 98, ["스크랜턴/윌크스배리 레일라이더스", "서머싯 패트리어츠", "허드슨밸리 레니게이즈", "탬파 타폰스"]],
+      ["TB", "탬파베이 레이스", "AL East", 79, 70, ["더럼 불스", "몽고메리 비스킷츠", "볼링그린 핫로드스", "찰스턴 리버독스"]],
+      ["TOR", "토론토 블루제이스", "AL East", 73, 82, ["버팔로 바이슨스", "뉴햄프셔 피셔캣츠", "밴쿠버 캐네디언스", "더니든 블루제이스"]],
+      ["CWS", "시카고 화이트삭스", "AL Central", 57, 70, ["샬럿 나이츠", "버밍햄 배런스", "윈스턴세일럼 대시", "캐나폴리스 캐논볼러스"]],
+      ["CLE", "클리블랜드 가디언스", "AL Central", 80, 74, ["콜럼버스 클리퍼스", "애크런 러버덕스", "레이크카운티 캡틴스", "린치버그 힐캣츠"]],
+      ["DET", "디트로이트 타이거스", "AL Central", 75, 72, ["톨리도 머드헨스", "이리 시울브스", "웨스트미시간 화이트캡스", "레이크랜드 플라잉타이거스"]],
+      ["KC", "캔자스시티 로열스", "AL Central", 71, 70, ["오마하 스톰체이서스", "노스웨스트 아칸소 내추럴스", "쿼드시티스 리버밴디츠", "컬럼비아 파이어플라이스"]],
+      ["MIN", "미네소타 트윈스", "AL Central", 73, 76, ["세인트폴 세인츠", "위치타 윈드서지", "시더래피즈 커널스", "포트마이어스 마이티머슬스"]],
+      ["ATH", "애슬레틱스", "AL West", 56, 62, ["라스베이거스 에비에이터스", "미들랜드 록하운즈", "랜싱 러그너츠", "스톡턴 포츠"]],
+      ["HOU", "휴스턴 애스트로스", "AL West", 82, 88, ["슈거랜드 스페이스카우보이스", "코퍼스크리스티 훅스", "애슈빌 투어리스츠", "페이엇빌 우드페커스"]],
+      ["LAA", "LA 에인절스", "AL West", 63, 82, ["솔트레이크 비즈", "로켓시티 트래시판다스", "트라이시티 더스트데블스", "인랜드엠파이어 66ers"]],
+      ["SEA", "시애틀 매리너스", "AL West", 78, 78, ["타코마 레이니어스", "아칸소 트래블러스", "에버렛 아쿠아삭스", "모데스토 넛츠"]],
+      ["TEX", "텍사스 레인저스", "AL West", 75, 84, ["라운드록 익스프레스", "프리스코 러프라이더스", "허브시티 스파르탄스", "다운이스트 우드덕스"]],
+      ["ATL", "애틀랜타 브레이브스", "NL East", 84, 88, ["귀넷 스트라이퍼스", "콜럼버스 클링스톤스", "롬 엠퍼러스", "오거스타 그린재킷스"]],
+      ["MIA", "마이애미 말린스", "NL East", 58, 66, ["잭슨빌 점보쉬림프", "펜사콜라 블루와후스", "벨로이트 스카이카프", "주피터 해머헤즈"]],
+      ["NYM", "뉴욕 메츠", "NL East", 76, 96, ["시러큐스 메츠", "빙엄턴 럼블포니즈", "브루클린 사이클론스", "세인트루시 메츠"]],
+      ["PHI", "필라델피아 필리스", "NL East", 83, 92, ["리하이밸리 아이언피그스", "레딩 파이틴필스", "저지쇼어 블루클로스", "클리어워터 쓰레셔스"]],
+      ["WSH", "워싱턴 내셔널스", "NL East", 60, 67, ["로체스터 레드윙스", "해리스버그 세너터스", "윌밍턴 블루락스", "프레더릭스버그 내셔널스"]],
+      ["CHC", "시카고 컵스", "NL Central", 76, 88, ["아이오와 컵스", "테네시 스모키스", "사우스벤드 컵스", "머틀비치 펠리컨스"]],
+      ["CIN", "신시내티 레즈", "NL Central", 69, 70, ["루이빌 배츠", "채터누가 룩아웃츠", "데이턴 드래곤스", "데이토나 토투가스"]],
+      ["MIL", "밀워키 브루어스", "NL Central", 81, 76, ["내슈빌 사운즈", "빌록시 슈커스", "위스콘신 팀버래틀러스", "캐롤라이나 머드캐츠"]],
+      ["PIT", "피츠버그 파이리츠", "NL Central", 64, 66, ["인디애나폴리스 인디언스", "앨투나 커브", "그린즈버러 그래스호퍼스", "브레이든턴 머로더스"]],
+      ["STL", "세인트루이스 카디널스", "NL Central", 72, 82, ["멤피스 레드버즈", "스프링필드 카디널스", "피오리아 치프스", "팜비치 카디널스"]],
+      ["ARI", "애리조나 다이아몬드백스", "NL West", 75, 75, ["리노 에이시즈", "애머릴로 소드푸들스", "힐스버로 홉스", "비살리아 로하이드"]],
+      ["COL", "콜로라도 로키스", "NL West", 56, 66, ["앨버커키 아이소톱스", "하트퍼드 야드고츠", "스포캔 인디언스", "프레즈노 그리즐리스"]],
+      ["LAD", "LA 다저스", "NL West", 90, 100, ["오클라호마시티 코멧츠", "털사 드릴러스", "그레이트레이크스 룬스", "랜초쿠카몽가 퀘이크스"]],
+      ["SD", "샌디에이고 파드리스", "NL West", 80, 86, ["엘패소 치와와스", "샌안토니오 미션스", "포트웨인 틴캡스", "레이크엘시노어 스톰"]],
+      ["SF", "샌프란시스코 자이언츠", "NL West", 70, 82, ["새크라멘토 리버캐츠", "리치먼드 플라잉스쿼럴스", "유진 에메랄즈", "산호세 자이언츠"]]
+    ].map(([id, name, division, strength, market, aff]) => ({
+      system: "MLB",
+      id,
+      name,
+      division,
+      strength,
+      market,
+      affiliates: { MLB: name, AAA: aff[0], AA: aff[1], APLUS: aff[2], A: aff[3], RK: `${name} 루키 컴플렉스` }
+    }));
+
+    const orgs = [...kboOrgs, ...mlbOrgs, ...npbOrgs];
+    const kboFuturesExtra = ["상무 피닉스", "울산 웨일즈"];
+    const npbFarmExtra = ["오이식스 니가타 알비렉스", "하야테 223"];
+
+    const els = {
+      setupScreen: qs("#setupScreen"), careerScreen: qs("#careerScreen"), form: qs("#playerForm"), roleSegment: qs("#roleSegment"),
+      position: qs("#position"), archetype: qs("#archetype"), amateurType: qs("#amateurType"), startSystem: qs("#startSystem"),
+      previewTitle: qs("#previewTitle"), previewCopy: qs("#previewCopy"), prospectPreview: qs("#prospectPreview"), loadCareerBtn: qs("#loadCareerBtn"),
+      careerTitle: qs("#careerTitle"), careerSubtitle: qs("#careerSubtitle"), careerYear: qs("#careerYear"), overallValue: qs("#overallValue"),
+      valueText: qs("#valueText"), teamText: qs("#teamText"), identityGrid: qs("#identityGrid"), skillBars: qs("#skillBars"),
+      timeline: qs("#timeline"), logCount: qs("#logCount"), wheel: qs("#rouletteWheel"), wheelCenter: qs("#wheelCenter"),
+      candidateGrid: qs("#candidateGrid"), rouletteMode: qs("#rouletteMode"), resultPanel: qs("#resultPanel"), mainSpinBtn: qs("#mainSpinBtn"),
+      contractBtn: qs("#contractBtn"), stepList: qs("#stepList"), stageTag: qs("#stageTag"), seasonTag: qs("#seasonTag"),
+      seasonSummary: qs("#seasonSummary"), careerTotals: qs("#careerTotals"), careerSpan: qs("#careerSpan"), historyHead: qs("#historyHead"),
+      historyBody: qs("#historyBody"), historyCount: qs("#historyCount"), saveBtn: qs("#saveBtn"), resetBtn: qs("#resetBtn"),
+      settlementBoard: qs("#settlementBoard"), settlementTag: qs("#settlementTag"), settlementBody: qs("#settlementBody")
+    };
+
+    let selectedRole = "hitter";
+    let state = emptyState();
+    let busy = false;
+    let spinRotation = 0;
+
+    function emptyState() {
+      return { version: 3, phase: "setup", player: null, currentSeason: null, history: [], logs: [], freeAgent: false, retired: false, savedAt: null };
+    }
+
+    function init() {
+      bindSetup();
+      bindGame();
+      updateRole("hitter");
+      updatePreview();
+      showSavedButton();
+      renderWheel([option("능력치", "40~70", 1, colors[0]), option("첫 소속", "팀 룰렛", 1, colors[1]), option("시즌", "단계 진행", 1, colors[2])], "대기 중");
+    }
+
+    function bindSetup() {
+      els.roleSegment.addEventListener("click", (event) => {
+        const button = event.target.closest("button[data-role]");
+        if (!button) return;
+        updateRole(button.dataset.role);
+        updatePreview();
+      });
+      ["input", "change"].forEach((name) => els.form.addEventListener(name, updatePreview));
+      els.form.addEventListener("submit", (event) => {
+        event.preventDefault();
+        if (busy) return;
+        state = emptyState();
+        state.player = createPlayerShell();
+        state.phase = "amateurPerformance";
+        addLog(`${state.player.name}의 커리어가 시작되었습니다. 학교 활약 룰렛을 돌리세요.`);
+        showCareer();
+      });
+      els.loadCareerBtn.addEventListener("click", () => {
+        const saved = loadCareer();
+        if (!saved) return;
+        state = saved;
+        showCareer();
+        renderAll();
+      });
+    }
+
+    function bindGame() {
+      els.mainSpinBtn.addEventListener("click", async () => {
+        if (busy || !state.player || state.retired) return;
+        if (state.phase === "amateurPerformance") return spinAmateurPerformance();
+        if (state.phase === "initialStats") return spinInitialStat();
+        if (state.phase === "draft") return spinDraft();
+        if (state.phase === "faDecision") return spinFaDecision();
+        if (state.phase === "contractLeague") return spinContractLeague();
+        if (state.phase === "roleChoice") return acceptRoleChange(true);
+        if (state.phase === "seasonReview") return continueAfterReview();
+        if (state.freeAgent || state.phase === "contract" || !state.player.assignment) return spinContract();
+        return spinSeasonStep();
+      });
+      els.contractBtn.addEventListener("click", async () => {
+        if (busy || !state.player || state.retired) return;
+        if (state.phase === "roleChoice") return acceptRoleChange(false);
+        if (state.freeAgent || state.phase === "contract" || !state.player.assignment) await spinContract();
+      });
+      els.saveBtn.addEventListener("click", () => {
+        saveCareer();
+        flashResult("저장 완료", "현재 커리어를 이 브라우저에 저장했습니다.");
+      });
+      els.resetBtn.addEventListener("click", () => {
+        if (busy) return;
+        state = emptyState();
+        localStorage.removeItem(STORAGE_KEY);
+        els.careerScreen.classList.add("is-hidden");
+        els.setupScreen.classList.remove("is-hidden");
+        showSavedButton();
+      });
+      els.settlementBoard.addEventListener("click", (event) => {
+        const tab = event.target.closest("button[data-review-tab]");
+        if (tab) {
+          state.reviewTab = tab.dataset.reviewTab;
+          renderAll();
+          return;
+        }
+        const team = event.target.closest("button[data-team-index]");
+        if (team) {
+          state.reviewTeamIndex = Number(team.dataset.teamIndex);
+          renderAll();
+          return;
+        }
+        if (event.target.closest("button[data-continue-review]")) continueAfterReview();
+      });
+    }
+
+    function updateRole(role) {
+      selectedRole = role;
+      qsa("#roleSegment button").forEach((button) => {
+        const active = button.dataset.role === role;
+        button.classList.toggle("is-active", active);
+        button.setAttribute("aria-pressed", String(active));
+      });
+      els.position.innerHTML = positionOptions[role].map((value) => `<option>${value}</option>`).join("");
+      els.archetype.innerHTML = archetypeOptions[role].map((value) => `<option>${value}</option>`).join("");
+    }
+
+    function startingAge() {
+      return els.amateurType.value === "college" ? 22 : 18;
+    }
+
+    function teamLevel(player) {
+      return Number.isFinite(Number(player.teamLevel)) ? Number(player.teamLevel) : Number(player.teamExpectation || 0);
+    }
+
+    function fanCount(player) {
+      return Number.isFinite(Number(player.fanCount)) ? Number(player.fanCount) : Number(player.fanExpectation || 0);
+    }
+
+    function setTeamLevel(player, value) {
+      const next = Math.round(clamp(value, 0, 100));
+      player.teamLevel = next;
+      player.teamExpectation = next;
+    }
+
+    function setFanCount(player, value) {
+      const next = Math.round(clamp(value, 0, 100));
+      player.fanCount = next;
+      player.fanExpectation = next;
+    }
+
+    function updatePreview() {
+      const name = (qs("#playerName").value || "이름 없는 선수").trim();
+      const roleName = selectedRole === "pitcher" ? "투수" : "타자";
+      const start = els.startSystem.value === "ALL" ? "전체" : els.startSystem.value;
+      const amateur = els.amateurType.value === "college" ? "대학교" : "고등학교";
+      const age = startingAge();
+      els.previewTitle.textContent = `${name}, ${roleName} 유망주`;
+      els.previewCopy.textContent = `시작하면 ${amateur} 활약 룰렛을 먼저 돌리고, 그 결과를 바탕으로 ${roleName} 능력치와 초기 가치를 결정합니다.`;
+      els.prospectPreview.innerHTML = [
+        ["포지션", els.position.value], ["성향", els.archetype.value], ["시작 나이", `${age}세`],
+        ["출신 유형", els.amateurType.value === "college" ? "대졸선수" : "고졸선수"], ["시작 리그", start], ["능력치", "학교 활약 기반"], ["은퇴", "36세부터"]
+      ].map(([label, value]) => metricHtml(label, value)).join("");
+    }
+
+    function createPlayerShell() {
+      const role = selectedRole;
+      const skillQueue = role === "pitcher" ? ["stuff", "command", "stamina", "defense"] : ["contact", "power", "speed", "defense"];
+      return {
+        name: (qs("#playerName").value || "김루키").trim(),
+        nationality: (qs("#nationality").value || "대한민국").trim(),
+        role,
+        amateurType: els.amateurType.value,
+        position: els.position.value,
+        archetype: els.archetype.value,
+        handedness: qs("#handedness").value,
+        startSystem: els.startSystem.value,
+        age: startingAge(),
+        debutAge: startingAge(),
+        seasonNo: 1,
+        skills: {},
+        skillQueue,
+        overall: null,
+        potential: null,
+        reputation: 5,
+        value: 0,
+        org: null,
+        assignment: null,
+        contractYears: 0,
+        salary: 0,
+        contractBonus: 0,
+        contractTotal: 0,
+        totalEarnings: 0,
+        awards: [],
+        draft: null,
+        schoolPerformance: null,
+        teamExpectation: 0,
+        fanExpectation: 0,
+        teamLevel: 0,
+        fanCount: 0,
+        pendingMove: null
+      };
+    }
+
+    async function spinAmateurPerformance() {
+      setBusy(true);
+      const options = buildAmateurPerformanceOptions();
+      const selected = weightedPick(options);
+      await spinWheel(options, selected, state.player.amateurType === "college" ? "대학 활약" : "고교 활약");
+      const player = state.player;
+      player.schoolPerformance = {
+        label: selected.label,
+        sub: selected.sub,
+        grade: selected.grade,
+        base: selected.base
+      };
+      player.skills = buildSkillsFromAmateur(player, selected);
+      player.skillQueue = [];
+      player.overall = calculateOverall(player.role, player.skills);
+      const potentialBase = player.amateurType === "high" ? int(12, 27) : int(6, 18);
+      player.potential = clamp(player.overall + potentialBase + selected.potentialBonus, player.overall + 3, 98);
+      player.reputation = Math.round(clamp(5 + selected.reputation + (player.amateurType === "college" ? 3 : 0), 3, 45));
+      player.value = calculateValue(player, 0, 50);
+      state.phase = "draft";
+      state.freeAgent = false;
+      addLog(`${selected.sub}: ${selected.label}. 초기 OVR ${player.overall}, 잠재력 ${player.potential}.`);
+      flashResult(selected.label, `${selected.sub} 결과를 바탕으로 능력치가 결정되었습니다. 이제 드래프트 룰렛을 돌립니다.`);
+      finishAction();
+    }
+
+    function buildAmateurPerformanceOptions() {
+      const player = state.player;
+      const college = player.amateurType === "college";
+      const center = college ? 57 : 54;
+      const spread = college ? 8.6 : 10.8;
+      const tiers = college
+        ? [
+          ["벤치/부진", "대학 무대 적응 실패", 43, -3, 3],
+          ["주전급", "컨퍼런스 주전", 50, 0, 8],
+          ["리그 상위권", "대학 리그 상위권 활약", 57, 2, 15],
+          ["전국구 스타", "전국 대회 주목 선수", 64, 4, 24],
+          ["최상위 유망주", "드래프트 상위권 후보", 69, 6, 34]
+        ]
+        : [
+          ["무명 유망주", "고교 무대에서 제한적 활약", 42, -1, 4],
+          ["주전급", "고교 주전급 활약", 49, 1, 9],
+          ["지역 스타", "지역 대회 상위권 활약", 56, 4, 16],
+          ["전국구 스타", "청소년 대표급 활약", 63, 7, 26],
+          ["세대급 재능", "고교 무대 지배", 70, 10, 38]
+        ];
+      return tiers.map(([label, sub, base, potentialBonus, reputation], index) => {
+        const weight = gaussian(base, center, spread) * 100 + 2;
+        return option(label, sub, weight, colors[index % colors.length], { grade: index + 1, base, potentialBonus, reputation });
+      });
+    }
+
+    function buildSkillsFromAmateur(player, performance) {
+      const keys = player.role === "pitcher" ? ["stuff", "command", "stamina", "defense"] : ["contact", "power", "speed", "defense"];
+      const preferred = {
+        "컨택형": "contact", "파워형": "power", "스피드형": "speed", "수비형": "defense",
+        "파워피처": "stuff", "제구형": "command", "이닝이터": "stamina", "땅볼유도형": "command", "마무리형": "stuff"
+      }[player.archetype];
+      const volatility = player.amateurType === "high" ? 6.2 : 4.2;
+      return keys.reduce((skills, key) => {
+        const bonus = key === preferred ? rnd(3, 7) : player.archetype === "밸런스형" ? rnd(-1, 2) : rnd(-3, 3);
+        const collegePolish = player.amateurType === "college" && (key === "command" || key === "defense" || key === "contact") ? 2 : 0;
+        skills[key] = Math.round(clamp(performance.base + bonus + collegePolish + rnd(-volatility, volatility), 40, 70));
+        return skills;
+      }, {});
+    }
+
+    async function spinInitialStat() {
+      const player = state.player;
+      const skillKey = player.skillQueue[0];
+      if (!skillKey) return finishInitialStats();
+      setBusy(true);
+      const options = buildInitialStatOptions(skillKey);
+      const selected = weightedPick(options);
+      els.rouletteMode.textContent = `${skillLabels[skillKey]} 결정`;
+      await spinWheel(options, selected, skillLabels[skillKey]);
+      player.skills[skillKey] = selected.value;
+      addLog(`${skillLabels[skillKey]} 능력치가 ${selected.value}로 결정되었습니다.`);
+      flashResult(`${skillLabels[skillKey]} ${selected.value}`, `초기 능력치 룰렛 결과입니다. 남은 능력치도 순서대로 결정됩니다.`);
+      player.skillQueue.shift();
+      if (!player.skillQueue.length) finishInitialStats();
+      finishAction();
+    }
+
+    function finishInitialStats() {
+      const player = state.player;
+      player.overall = calculateOverall(player.role, player.skills);
+      player.potential = clamp(player.overall + int(8, 24) - Math.max(0, player.age - 22), player.overall + 4, 96);
+      player.value = calculateValue(player, 0, 50);
+      state.phase = "draft";
+      state.freeAgent = false;
+      addLog(`초기 OVR ${player.overall}, 잠재력 ${player.potential}. 드래프트 룰렛이 열렸습니다.`);
+    }
+
+    function buildInitialStatOptions(skillKey) {
+      const bias = state.player.archetype;
+      const preferred = {
+        "컨택형": "contact", "파워형": "power", "스피드형": "speed", "수비형": "defense",
+        "파워피처": "stuff", "제구형": "command", "이닝이터": "stamina", "땅볼유도형": "command", "마무리형": "stuff"
+      }[bias];
+      return Array.from({ length: 31 }, (_, index) => {
+        const value = 40 + index;
+        const center = preferred === skillKey ? 58 : bias === "밸런스형" ? 55 : 53;
+        const weight = gaussian(value, center, preferred === skillKey ? 8.2 : 9.6) * 100 + 3;
+        return option(String(value), `${skillLabels[skillKey]} ${value}`, weight, colors[index % colors.length], { value });
+      });
+    }
+
+    async function spinDraft() {
+      setBusy(true);
+      const options = buildDraftOptions();
+      const selected = weightedPick(options);
+      await spinWheel(options, selected, "드래프트");
+      const player = state.player;
+      player.draft = {
+        system: selected.system,
+        label: selected.label,
+        bonus: selected.bonus,
+        prestige: selected.prestige
+      };
+      if (player.startSystem === "ALL") player.startSystem = selected.system;
+      setTeamLevel(player, selected.teamExpectation);
+      setFanCount(player, selected.fanExpectation);
+      player.value = calculateValue(player, 0, 50);
+      state.phase = "contract";
+      state.freeAgent = true;
+      addLog(`${selected.system} 드래프트 결과: ${selected.label}. 팀 수준 ${teamLevel(player)}, 팬 수 ${fanCount(player)}.`);
+      flashResult(selected.label, `${selected.system} 드래프트 결과입니다. 이제 첫 소속팀 룰렛을 돌립니다.`);
+      finishAction();
+    }
+
+    function buildDraftOptions() {
+      const player = state.player;
+      const systems = player.startSystem === "ALL" ? ["KBO", "NPB", "MLB"] : [player.startSystem];
+      const quality = player.overall + (player.potential - player.overall) * 0.45 + player.reputation * 0.18;
+      const pools = {
+        KBO: [
+          ["1라운드 지명", 72, 3.2, 70, 62],
+          ["2-3라운드 지명", 62, 1.4, 55, 43],
+          ["4-7라운드 지명", 52, 0.55, 38, 28],
+          ["8라운드 이후 지명", 45, 0.22, 24, 17],
+          ["육성선수 계약", 39, 0.08, 15, 10]
+        ],
+        NPB: [
+          ["드래프트 1순위 지명", 74, 3.8, 75, 68],
+          ["상위 지명", 64, 1.8, 58, 46],
+          ["중위 지명", 54, 0.72, 40, 30],
+          ["하위 지명", 46, 0.28, 25, 18],
+          ["육성 드래프트", 39, 0.08, 15, 10]
+        ],
+        MLB: [
+          ["1라운드 지명", 78, 18, 82, 78],
+          ["보상/2라운드 지명", 69, 8, 66, 55],
+          ["3-5라운드 지명", 59, 2.8, 46, 34],
+          ["6-10라운드 지명", 50, 0.9, 30, 20],
+          ["11라운드 이후 지명", 43, 0.22, 18, 12],
+          ["비지명 자유계약", 36, 0.05, 10, 8]
+        ]
+      };
+      return systems.flatMap((system, systemIndex) => pools[system].map(([label, center, bonus, teamExpectation, fanExpectation], index) => {
+        const weight = gaussian(quality, center, 7.5) * 100 + 2;
+        return option(`${system} ${label}`, `계약금 ${money(bonus)}`, weight, colors[(systemIndex * 6 + index) % colors.length], {
+          system,
+          bonus,
+          prestige: center,
+          teamExpectation,
+          fanExpectation
+        });
+      }));
+    }
+
+    async function spinContract() {
+      setBusy(true);
+      const options = buildContractOptions();
+      const selected = weightedPick(options);
+      els.rouletteMode.textContent = state.player.assignment ? "계약" : "첫 소속";
+      await spinWheel(options, selected, state.player.assignment ? "FA" : "첫 소속");
+
+      const player = state.player;
+      const previousOrg = player.org?.name;
+      player.org = selected.org;
+      const levelKey = resolveAssignmentLevel(player, selected.org, true);
+      player.assignment = makeAssignment(selected.org, levelKey);
+      player.value = calculateValue(player, 0, player.assignment.quality);
+      player.contractYears = contractYears(player, selected.org);
+      player.salary = contractSalary(player, selected.org, levelKey);
+      player.contractBonus = contractBonus(player, selected.org, levelKey);
+      player.contractTotal = round2(player.salary * player.contractYears + player.contractBonus);
+      player.totalEarnings += player.contractTotal;
+      player.transactionLockSeason = player.seasonNo;
+      syncClubContextStats(player, selected.org, levelKey, contractExpectationBoost(player, selected.org, levelKey) * 0.25);
+      state.freeAgent = false;
+      state.phase = "season";
+      state.currentSeason = null;
+      player.pendingMove = null;
+      const verb = previousOrg && previousOrg !== selected.org.name ? `${previousOrg}에서 ${selected.org.name}로 이동` : `${selected.org.name}와 계약`;
+      addLog(`${verb}했습니다. 배정은 ${player.assignment.teamName} (${player.assignment.levelLabel})입니다.`);
+      flashResult(selected.org.name, `${player.assignment.teamName} 배정. ${contractText(player)}입니다.`);
+      finishAction();
+    }
+
+    async function spinFaDecision() {
+      setBusy(true);
+      const options = buildFaDecisionOptions();
+      const selected = weightedPick(options);
+      await spinWheel(options, selected, "FA 선택");
+      const player = state.player;
+      player.pendingMove = { type: selected.faType };
+      if (selected.faType === "재계약") {
+        player.pendingMove.targetSystems = [player.org.system];
+        player.pendingMove.lockOrgId = player.org.id;
+        state.phase = "contract";
+        flashResult("재계약 협상", `${player.org.name}와 재계약 협상으로 이동합니다.`);
+      } else if (selected.faType === "국내 FA") {
+        player.pendingMove.targetSystems = [player.org.system];
+        state.phase = "contract";
+        flashResult("FA 선언", `${systemNames[player.org.system]} 내 FA 시장으로 이동합니다.`);
+      } else {
+        state.phase = "contractLeague";
+        flashResult("해외 FA", "먼저 진출할 리그를 결정합니다.");
+      }
+      addLog(`FA 선택: ${selected.faType}.`);
+      finishAction();
+    }
+
+    function topLeagueServiceYears(player, system = player.org?.system) {
+      if (!system) return 0;
+      return state.history.filter((row) => row.levelKey === system).length;
+    }
+
+    function kboFaRequiredYears(player) {
+      return player.amateurType === "college" ? 8 : 9;
+    }
+
+    function isKboDomesticFaEligible(player) {
+      return topLeagueServiceYears(player, "KBO") >= kboFaRequiredYears(player);
+    }
+
+    function isKboInternationalFaEligible(player) {
+      return topLeagueServiceYears(player, "KBO") >= 9;
+    }
+
+    function isPostingEligible(player) {
+      const topLevel = ["KBO", "NPB"].includes(player.assignment?.levelKey);
+      if (!topLevel || player.overall < 72) return false;
+      if (player.org.system === "KBO") return topLeagueServiceYears(player, "KBO") >= 7;
+      if (player.org.system === "NPB") return topLeagueServiceYears(player, "NPB") >= 7 && player.overall >= 76;
+      return false;
+    }
+
+    function canEnterFreeAgency(player) {
+      if (player.org?.system === "KBO") return isKboDomesticFaEligible(player);
+      if (player.org?.system === "MLB") return topLeagueServiceYears(player, "MLB") >= 6 || state.history.length >= 7 || player.age >= 29;
+      if (player.org?.system === "NPB") return topLeagueServiceYears(player, "NPB") >= 8 || state.history.length >= 8;
+      return true;
+    }
+
+    function buildFaDecisionOptions() {
+      const player = state.player;
+      const recent = recentPerformanceScore();
+      const leagueGapToMlb = player.org?.system === "MLB" ? -18 : player.org?.system === "NPB" ? 7 : 11;
+      const prestige = player.overall + player.reputation * 0.35 + (teamLevel(player) + fanCount(player)) * 0.12 + recent * 2.2;
+      const overseasEligible = player.org?.system === "KBO"
+        ? isKboInternationalFaEligible(player)
+        : player.age >= 25 || state.history.length >= 6 || player.overall >= 70;
+      const overseasPull = overseasEligible ? Math.max(0, player.overall - 68 + leagueGapToMlb + recent * 2.8) : -20;
+      const reSignWeight = clamp(48 + teamLevel(player) * 0.3 + fanCount(player) * 0.08 + player.reputation * 0.12 - Math.max(0, player.overall - 78) * 1.1 - Math.max(0, recent - 3) * 5.6, 8, 110);
+      const domesticWeight = clamp(26 + Math.max(0, prestige - 55) * 0.72 + (player.contractYears <= 0 ? 8 : 0), 8, 86);
+      const options = [
+        option("재계약", `${player.org.name}`, reSignWeight, colors[2], { faType: "재계약" }),
+        option("FA 선언", `${systemNames[player.org.system]} 시장`, domesticWeight, colors[1], { faType: "국내 FA" })
+      ];
+      if (overseasEligible) {
+        options.push(option("해외 FA", "다른 리그 도전", clamp(8 + overseasPull * 2.1, 3, 130), colors[5], { faType: "해외 FA" }));
+      }
+      return options;
+    }
+
+    async function spinContractLeague() {
+      setBusy(true);
+      const options = buildContractLeagueOptions();
+      const selected = weightedPick(options);
+      await spinWheel(options, selected, "FA 리그");
+      state.player.pendingMove.targetSystems = [selected.targetSystem];
+      state.phase = "contract";
+      addLog(`해외 FA 대상 리그: ${systemNames[selected.targetSystem]}.`);
+      flashResult(systemNames[selected.targetSystem], "이제 해당 리그의 팀 룰렛을 돌립니다.");
+      finishAction();
+    }
+
+    function buildContractLeagueOptions() {
+      const player = state.player;
+      return ["KBO", "NPB", "MLB"].filter((system) => system !== player.org.system).map((system, index) => {
+        const recent = recentPerformanceScore();
+        let weight = system === "MLB" ? 30 + Math.max(0, player.overall - 64) * 3.6 + recent * 8 : 22 + Math.max(0, player.overall - 58) * 1.4 + recent * 3.2;
+        if (system === "MLB" && player.overall < 62) weight *= 0.22;
+        if (system === "MLB" && player.overall >= 84) weight *= 1.85;
+        if (system !== "MLB" && player.overall >= 84) weight *= 0.45;
+        if (system === "KBO" && player.nationality.includes("대한")) weight *= 1.4;
+        if (system === "NPB" && player.overall >= 62) weight *= 1.2;
+        return option(systemNames[system], "해외 FA 대상", weight, colors[index % colors.length], { targetSystem: system });
+      });
+    }
+
+    function buildContractOptions() {
+      const player = state.player;
+      const target = player.startSystem;
+      if (player.pendingMove?.lockOrgId) {
+        const org = orgs.find((item) => item.id === player.pendingMove.lockOrgId && item.system === player.org.system) || player.org;
+        return [option(org.name, `${systemNames[org.system]} · 재계약`, 100, colors[2], { org })];
+      }
+      const allowedSystems = player.pendingMove?.targetSystems || (target === "ALL" ? ["KBO", "NPB", "MLB"] : [target]);
+      const recent = recentPerformanceScore();
+      const pull = (player.overall || 50) + player.reputation * 0.35 + Math.sqrt(Math.max(0.1, player.value)) * 1.4 + (teamLevel(player) + fanCount(player)) * 0.08 + recent * 2.8;
+      const options = orgs.filter((org) => allowedSystems.includes(org.system)).map((org, index) => {
+        const desired = org.system === "MLB" ? 72 : org.system === "NPB" ? 63 : 55;
+        let weight = clamp(50 - Math.abs(desired + org.market * 0.12 - pull), 2, 56);
+        if (player.pendingMove?.targetSystem && org.system === player.pendingMove.targetSystem) weight *= 2.2;
+        else if (target !== "ALL" && org.system === target) weight *= 2.8;
+        if (org.system === "MLB" && player.overall < 56) weight *= 0.58;
+        if (org.system === "MLB" && player.overall >= 84 && org.market >= 80) weight *= 1.7;
+        if (org.system !== "MLB" && player.pendingMove?.type === "해외 FA" && player.overall >= 84) weight *= 0.6;
+        if (org.system === "KBO" && player.nationality.includes("대한")) weight *= 1.25;
+        if (player.pendingMove?.lockOrgId && org.id !== player.pendingMove.lockOrgId) weight = 0.1;
+        if (org.id === player.org?.id && player.pendingMove?.type !== "유지") weight *= 0.04;
+        return option(org.name, `${systemNames[org.system]} · ${org.division || "단일리그"}`, weight, colors[index % colors.length], { org });
+      });
+      return options.sort((a, b) => b.weight - a.weight).slice(0, 14);
+    }
+
+    function resolveAssignmentLevel(player, org, isNewContract) {
+      const overall = player.overall || 50;
+      if (org.system === "MLB") {
+        if (overall >= 72) return "MLB";
+        if (overall >= 64) return "AAA";
+        if (overall >= 58) return "AA";
+        if (overall >= 53) return "APLUS";
+        if (overall >= 48) return "A";
+        return "RK";
+      }
+      if (org.system === "NPB") return overall >= 61 || (!isNewContract && player.reputation > 45) ? "NPB" : "NPB_FARM";
+      return overall >= 58 || (!isNewContract && player.reputation > 42) ? "KBO" : "KBO_FUT";
+    }
+
+    function makeAssignment(org, levelKey) {
+      const level = levelInfo[levelKey];
+      return {
+        system: org.system,
+        orgId: org.id,
+        majorTeam: org.name,
+        teamName: org.affiliates[levelKey] || org.name,
+        levelKey,
+        levelLabel: level.label,
+        quality: level.quality,
+        games: level.games,
+        rankCount: level.rankCount,
+        playoffCut: level.playoffCut,
+        runEnv: level.runEnv
+      };
+    }
+
+    function syncClubContextStats(player, org, levelKey, performanceShift = 0) {
+      const top = ["KBO", "NPB", "MLB"].includes(levelKey);
+      const levelPenalty = top ? 0 : levelKey === "AAA" ? -8 : ["AA", "APLUS"].includes(levelKey) ? -14 : -20;
+      const paySignal = Math.sqrt(Math.max(0, player.contractTotal || player.salary || 0)) * 0.9;
+      setTeamLevel(player, org.strength + levelPenalty + performanceShift + (player.reputation - 50) * 0.04);
+      setFanCount(player, org.market + (top ? 0 : -18) + (player.reputation - 45) * 0.22 + paySignal);
+    }
+
+    function renewControlledContract(player) {
+      const levelKey = player.assignment?.levelKey || resolveAssignmentLevel(player, player.org, false);
+      player.contractYears = 1;
+      player.salary = contractSalary(player, player.org, levelKey);
+      player.contractBonus = 0;
+      player.contractTotal = round2(player.salary);
+      player.totalEarnings += player.contractTotal;
+      player.transactionLockSeason = player.seasonNo;
+      syncClubContextStats(player, player.org, levelKey, -1);
+    }
+
+    function contractYears(player, org) {
+      if (player.age >= 36) return int(1, 2);
+      if (player.overall >= 72 && org.system === "MLB") return int(3, 7);
+      if (player.overall >= 66) return int(2, 5);
+      return int(1, 4);
+    }
+
+    function contractSalary(player, org, levelKey) {
+      const level = levelInfo[levelKey];
+      const scale = org.system === "MLB" ? 1.35 : org.system === "NPB" ? 0.72 : 0.55;
+      const minorCut = ["AAA", "AA", "APLUS", "A", "RK", "NPB_FARM", "KBO_FUT"].includes(levelKey) ? 0.12 : 1;
+      const expectation = 0.74 + teamLevel(player) / 460 + fanCount(player) / 205;
+      return round2(clamp(player.value * (0.5 + org.market / 180) * scale * minorCut * expectation, 0.04, 850));
+    }
+
+    function contractBonus(player, org, levelKey) {
+      const top = ["KBO", "NPB", "MLB"].includes(levelKey);
+      if (!top) return round2(clamp((player.draft?.bonus || 0) * 0.15, 0, 1.2));
+      const starBonus = Math.max(0, player.overall - 68) * (org.system === "MLB" ? 0.38 : org.system === "NPB" ? 0.18 : 0.12);
+      return round2(clamp(starBonus + (player.reputation || 0) * 0.025, 0, org.system === "MLB" ? 80 : 18));
+    }
+
+    function contractExpectationBoost(player, org, levelKey) {
+      const top = ["KBO", "NPB", "MLB"].includes(levelKey);
+      const paySignal = Math.sqrt(Math.max(0.05, player.salary || player.value)) * (top ? 2.8 : 1.4);
+      const draftSignal = player.draft?.prestige ? (player.draft.prestige - 45) * 0.12 : 0;
+      return clamp(paySignal + draftSignal + (org.market - 60) * 0.08, -8, 24);
+    }
+
+    function showCareer() {
+      els.setupScreen.classList.add("is-hidden");
+      els.careerScreen.classList.remove("is-hidden");
+      renderAll();
+    }
+
+    function calculateOverall(role, skills) {
+      const score = role === "pitcher"
+        ? (skills.stuff || 40) * 0.41 + (skills.command || 40) * 0.37 + (skills.stamina || 40) * 0.17 + (skills.defense || 40) * 0.05
+        : (skills.contact || 40) * 0.34 + (skills.power || 40) * 0.22 + (skills.speed || 40) * 0.18 + (skills.defense || 40) * 0.26;
+      return Math.round(clamp(score, 35, 99));
+    }
+
+    function calculateValue(player, recentScore, leagueQuality) {
+      const ageCurve = player.age < 24 ? 1.08 : player.age < 31 ? 1.0 : player.age < 35 ? 0.78 : player.age < 39 ? 0.5 : 0.28;
+      const levelMarket = {
+        MLB: 3.8, KBO: 0.65, NPB: 0.9, AAA: 0.16, AA: 0.09, APLUS: 0.06, A: 0.04, RK: 0.025, KBO_FUT: 0.055, NPB_FARM: 0.075
+      }[player.assignment?.levelKey] ?? 0.08;
+      const base = Math.pow(Math.max(30, player.overall || 45), 2.15) / 38;
+      const expectation = (teamLevel(player) * 0.35 + fanCount(player) * 0.65) * 0.035;
+      const draftBonus = (player.draft?.bonus || 0) * 0.4;
+      const raw = (base + player.reputation * 1.35 + recentScore * 11 + expectation + state.history.length * 0.7 + draftBonus) * ageCurve * levelMarket / 6;
+      return round2(clamp(raw, 0.04, 2200));
+    }
+
+    function recentPerformanceScore() {
+      const latest = state.history[0];
+      if (!latest) return 0;
+      const levelBonus = ["KBO", "NPB", "MLB"].includes(latest.levelKey) ? 0.55 : -0.15;
+      return clamp(Number(latest.score || 0) + levelBonus, -5.5, 7);
+    }
+
+    async function spinSeasonStep() {
+      setBusy(true);
+      if (!state.currentSeason) beginSeason();
+      const step = state.currentSeason.step;
+      if (step === "settlement") {
+        finalizeSeason();
+        finishAction();
+        return;
+      }
+      const options = buildStepOptions(step);
+      const selected = weightedPick(options);
+      els.rouletteMode.textContent = stepTitle(step);
+      await spinWheel(options, selected, stepTitle(step));
+      applyStepResult(step, selected);
+      finishAction();
+    }
+
+    function beginSeason() {
+      const player = state.player;
+      const firstStep = "transaction";
+      state.currentSeason = {
+        seasonNo: player.seasonNo,
+        age: player.age,
+        role: player.role,
+        assignment: { ...player.assignment },
+        orgName: player.org.name,
+        step: firstStep,
+        done: [],
+        regular: {},
+        playoff: {},
+        transaction: null,
+        pendingMove: null,
+        rank: null,
+        result: null
+      };
+      addLog(`${player.age}세 시즌 시작: ${player.assignment.teamName} (${player.assignment.levelLabel}).`);
+    }
+
+    function buildStepOptions(step) {
+      const player = state.player;
+      const season = state.currentSeason;
+      if (step === "transaction") return transactionOptions(player, season);
+      if (step === "moveLeague") return moveLeagueOptions(player, season);
+      if (step === "moveTeam") return moveTeamOptions(player, season);
+      if (step === "retirement") return retirementOptions(player);
+      if (step === "pa") return plateAppearanceOptions(player, season);
+      if (step === "hits") return hitOptions(player, season);
+      if (step === "steals") return stealOptions(player, season, false);
+      if (step === "innings") return inningsOptions(player, season);
+      if (step === "strikeouts") return strikeoutOptions(player, season, false);
+      if (step === "era") return eraOptions(player, season, false);
+      if (step === "pitcherRoleStat") return pitcherRoleStatOptions(player, season);
+      if (step === "teamRank") return teamRankOptions(player, season);
+      if (step === "playoffResult") return playoffResultOptions(player, season);
+      if (step === "playoffHits") return playoffHitOptions(player, season);
+      if (step === "playoffSteals") return stealOptions(player, season, true);
+      if (step === "playoffStrikeouts") return strikeoutOptions(player, season, true);
+      if (step === "playoffEra") return eraOptions(player, season, true);
+      return [option("대기", "", 1, colors[0])];
+    }
+
+    function retirementOptions(player) {
+      const risk = clamp((player.age - 35) * 9 - player.overall * 0.45 - player.reputation * 0.22 + (player.age >= 40 ? 16 : 0), 4, 78);
+      return [
+        option("현역 연장", `${player.age}세 시즌 도전`, 100 - risk, colors[2], { retire: false }),
+        option("은퇴", "커리어 종료", risk, colors[0], { retire: true })
+      ];
+    }
+
+    function transactionOptions(player, season) {
+      if (player.transactionLockSeason === player.seasonNo) {
+        return [
+          option("소속팀 유지", "새 계약 첫 시즌", 100, colors[2], { moveType: "유지" })
+        ];
+      }
+      const topLevel = ["KBO", "NPB", "MLB"].includes(player.assignment.levelKey);
+      const recent = recentPerformanceScore();
+      const mismatch = player.overall - (season.assignment.quality + (player.org.strength - 70) * 0.18);
+      const clubLevel = teamLevel(player);
+      const fans = fanCount(player);
+      const pressure = clamp((100 - clubLevel) * 0.32 + (72 - fans) * 0.12 - player.reputation * 0.1 - recent * 3.6, -26, 42);
+      const contractLow = player.contractYears <= 1 ? 1.45 : 1;
+      const postingEligible = isPostingEligible(player);
+      const leagueCeiling = { KBO: 60, NPB: 70, MLB: 82 }[player.org.system] || season.assignment.quality;
+      const postingPull = postingEligible ? Math.max(0, player.overall - leagueCeiling + Math.max(0, recent) * 2.2 + player.reputation * 0.1 + fans * 0.05) : 0;
+      const starAnchor = Math.max(0, player.overall - 78) * 2.1 + Math.max(0, fans - 70) * 0.45;
+      const stayWeight = clamp(112 + clubLevel * 0.2 + player.reputation * 0.18 + starAnchor - postingPull * 1.7 - Math.max(0, -recent) * 5, 44, 180);
+      const tradeBase = 4 + Math.max(0, pressure) * 0.18 + (player.contractYears <= 1 ? 3 : 0) + Math.max(0, 58 - clubLevel) * 0.12 - Math.max(0, mismatch - 6) * 0.85;
+      const tradeWeight = clamp((tradeBase - Math.max(0, player.overall - 80) * 0.45 - Math.max(0, fans - 75) * 0.18 - (postingEligible ? 5 : 0)) * contractLow, 0.6, topLevel ? 18 : 26);
+      const waiverWeight = clamp(2 + Math.max(0, pressure) * 0.23 + Math.max(0, 52 - player.overall) * 0.55 + Math.max(0, -recent) * 3.4 - Math.max(0, fans - 65) * 0.08, 0.3, 32);
+      const options = [
+        option("소속팀 유지", `${player.assignment.teamName} · 팀 수준/팬 수 반영`, stayWeight, colors[2], { moveType: "유지" }),
+        option("트레이드", "같은 리그 다른 조직 · 팀 사정/계약 반영", tradeWeight, colors[1], { moveType: "트레이드" }),
+        option("웨이버 공시", "같은 리그 내 새 기회", waiverWeight, colors[0], { moveType: "웨이버" })
+      ];
+      if (postingEligible) {
+        const serviceYears = topLeagueServiceYears(player, player.org.system);
+        const postingWeight = clamp(8 + postingPull * (player.org.system === "KBO" ? 5.4 : 4.4) + Math.max(0, fans - 58) * 0.35 - Math.max(0, clubLevel - 82) * 0.22, 5, 170);
+        options.push(option("포스팅", `${player.org.system} ${serviceYears}시즌 · MLB 도전`, postingWeight, colors[5], { moveType: "포스팅" }));
+      }
+      return options;
+    }
+
+    function moveLeagueOptions(player, season) {
+      const type = season.pendingMove?.type || "트레이드";
+      const current = player.org.system;
+      const systems = type === "포스팅" ? ["MLB"] : [current];
+      return systems.map((system, index) => {
+        let weight = system === current ? 42 : 18;
+        if (type === "포스팅") weight = system === "MLB" ? 82 : 7;
+        if (type === "웨이버") weight = system === current ? 48 : 16;
+        if (type === "트레이드" && system !== current && player.overall >= 64) weight += 14;
+        if (system === "MLB" && player.overall < 56) weight *= 0.35;
+        return option(systemNames[system], `${type} 대상 리그`, weight, colors[index % colors.length], { targetSystem: system });
+      });
+    }
+
+    function moveTeamOptions(player, season) {
+      const targetSystem = season.pendingMove?.targetSystem || player.org.system;
+      const oldOrgId = player.org.id;
+      const pool = orgs.filter((org) => org.system === targetSystem);
+      return pool.map((org, index) => {
+        const recent = recentPerformanceScore();
+        const pull = player.overall + player.reputation * 0.28 + (teamLevel(player) + fanCount(player)) * 0.07 + recent * 2.5;
+        const desired = org.system === "MLB" ? 72 : org.system === "NPB" ? 63 : 55;
+        let weight = clamp(45 - Math.abs(desired + org.market * 0.1 - pull), 2, 54);
+        if (player.overall >= 86 && org.market >= 84) weight *= 1.55;
+        if (player.overall < 58 && org.market >= 84) weight *= 0.42;
+        if (season.pendingMove?.type === "트레이드" && org.strength < player.org.strength - 12 && player.overall >= 76) weight *= 0.58;
+        if (org.id === oldOrgId) weight *= season.pendingMove?.type === "웨이버" ? 0.16 : 0.03;
+        if (season.pendingMove?.type === "웨이버" && org.market < 72) weight *= 1.35;
+        if (season.pendingMove?.type === "포스팅" && org.system === "MLB" && org.market > 80) weight *= 1.25;
+        return option(org.name, `${systemNames[org.system]} · ${org.division || "단일리그"}`, weight, colors[index % colors.length], { org });
+      }).sort((a, b) => b.weight - a.weight).slice(0, 14);
+    }
+
+    function plateAppearanceOptions(player, season) {
+      const maxPa = Math.round(season.assignment.games * 4.36);
+      const expectationBoost = (teamLevel(player) * 0.72 + fanCount(player) * 0.28) / 420;
+      const playTime = clamp(0.16 + (player.overall - season.assignment.quality + 22) / 78 + player.reputation / 280 + expectationBoost, 0.08, 0.99);
+      const center = maxPa * playTime;
+      return rangeOptions([["부상/벤치", 35, 180], ["백업", 181, 320], ["파트타임", 321, 460], ["주전", 461, 590], ["풀타임", 591, maxPa]], center, 96, "PA");
+    }
+
+    function hitOptions(player, season) {
+      const pa = season.regular.pa || 320;
+      const ab = pa * 0.88;
+      const qualityPenalty = (season.assignment.quality - 50) * 0.00145;
+      const avg = clamp(0.188 + player.skills.contact * 0.00195 + player.skills.power * 0.00022 - qualityPenalty, 0.15, 0.36);
+      const center = ab * avg * season.assignment.runEnv;
+      return spreadNumberOptions(center, Math.max(8, center * 0.16), [["침묵", 0.58], ["저조", 0.78], ["보통", 0.98], ["좋음", 1.18], ["폭발", 1.42]], "H");
+    }
+
+    function stealOptions(player, season, isPlayoff) {
+      const pa = isPlayoff ? (season.playoff.games || 0) * 4.0 : season.regular.pa || 320;
+      const center = Math.max(0, (pa / 620) * Math.pow((player.skills.speed || 45) / 70, 2.1) * 30);
+      return rangeOptions([["없음", 0, 0], ["소폭", 1, 7], ["평균 이상", 8, 18], ["도루왕급", 19, 38], ["역대급", 39, 65]], center, Math.max(3, center * 0.48), "SB");
+    }
+
+    function inningsOptions(player, season) {
+      const starter = player.position.includes("선발");
+      const closer = player.position.includes("마무리");
+      const expectationBoost = (teamLevel(player) * 0.72 + fanCount(player) * 0.28) / 100;
+      const center = starter
+        ? clamp(28 + player.skills.stamina * 1.65 + player.overall * 0.46 - (season.assignment.quality - 50) * 0.55 + expectationBoost * 18, 20, 215)
+        : closer
+          ? clamp(16 + player.overall * 0.34 + player.skills.stuff * 0.15 + expectationBoost * 7, 12, 74)
+          : clamp(24 + player.overall * 0.5 + player.skills.stamina * 0.2 + expectationBoost * 10, 14, 96);
+      const ranges = starter
+        ? [["부상/대체", 18, 65], ["제한 선발", 66, 115], ["로테이션", 116, 160], ["이닝이터", 161, 195], ["에이스급", 196, 220]]
+        : closer
+          ? [["제한적 마무리", 18, 32], ["백업 마무리", 33, 46], ["정규 마무리", 47, 60], ["핵심 마무리", 61, 72], ["혹사급", 73, 82]]
+          : [["적은 등판", 12, 30], ["추격조", 31, 48], ["필승조", 49, 66], ["핵심 불펜", 67, 84], ["혹사급", 85, 98]];
+      return rangeOptions(ranges, center, starter ? 30 : 15, "IP").map((item) => {
+        const ip = item.value;
+        item.games = starter ? Math.max(1, Math.round(ip / rnd(4.7, 6.1))) : Math.max(1, Math.min(ip, Math.round(ip / rnd(1.02, closer ? 1.26 : 1.34))));
+        item.starts = starter ? item.games : 0;
+        item.sub = starter ? `${item.starts}GS · ${item.value}IP` : `${item.games}G · ${item.value}IP`;
+        return item;
+      });
+    }
+
+    function strikeoutOptions(player, season, isPlayoff) {
+      const ip = isPlayoff ? (season.playoff.pitchingIp || Math.max(2, (season.playoff.games || 0) * 1.1)) : season.regular.innings || 90;
+      const k9 = clamp(4.6 + player.skills.stuff * 0.078 + player.skills.command * 0.012 - (season.assignment.quality - 50) * 0.035, 4.2, 14.5);
+      const center = ip * k9 / 9;
+      return spreadNumberOptions(center, Math.max(4, center * 0.18), [["맞혀잡기", 0.68], ["평균 이하", 0.86], ["보통", 1], ["탈삼진형", 1.18], ["압도", 1.45]], "K");
+    }
+
+    function eraOptions(player, season, isPlayoff) {
+      const center = clamp(5.15 - player.skills.command * 0.024 - player.skills.stuff * 0.015 + (season.assignment.quality - 50) * 0.022, 1.55, 7.5);
+      return rangeOptions([["1점대", 1.55, 1.99], ["2점대", 2, 2.99], ["3점대", 3, 3.99], ["4점대", 4, 4.99], ["5점대", 5, 5.99], ["6점대+", 6, 7.8]], center, isPlayoff ? 0.85 : 0.78, "ERA", true);
+    }
+
+    function pitcherRoleStatOptions(player, season) {
+      const ip = season.regular.innings || 1;
+      const era = Number(season.regular.era || 4.5);
+      const k9 = (season.regular.strikeouts || 0) / Math.max(1, ip) * 9;
+      const quality = clamp((4.35 - era) * 0.85 + (k9 - 7.5) * 0.24 + (player.overall - season.assignment.quality) * 0.045, -3.4, 4.2);
+      const clubSupport = state.player.org.strength + (teamLevel(player) - 50) * 0.25;
+      if (player.position.includes("선발")) {
+        const centerWins = clamp(ip / 185 * 14 + quality * 1.8 + clubSupport / 18, 1, 23);
+        return [
+          option("고전", "승보다 패가 많음", gaussian(-2, quality, 1.35) * 100 + 2, colors[0], { wins: Math.round(clamp(centerWins - rnd(5, 8), 0, 9)), losses: Math.round(clamp(10 - quality * 1.4 + rnd(0, 4), 2, 18)) }),
+          option("평균", "선발 승패 균형", gaussian(0, quality, 1.4) * 100 + 4, colors[1], { wins: Math.round(clamp(centerWins + rnd(-3, 2), 2, 14)), losses: Math.round(clamp(7 - quality + rnd(-2, 3), 1, 13)) }),
+          option("승리 기여", "두 자릿수 승리", gaussian(1.7, quality, 1.4) * 100 + 3, colors[2], { wins: Math.round(clamp(centerWins + rnd(1, 5), 9, 18)), losses: Math.round(clamp(5 - quality + rnd(-1, 2), 0, 9)) }),
+          option("에이스 승수", "상위권 승패", gaussian(3.2, quality, 1.5) * 100 + 1, colors[3], { wins: Math.round(clamp(centerWins + rnd(4, 8), 14, 23)), losses: Math.round(clamp(3 - quality + rnd(-1, 2), 0, 6)) })
+        ];
+      }
+      if (player.position.includes("마무리")) {
+        const games = season.regular.games || Math.round(ip);
+        const centerSv = clamp(games * 0.34 + quality * 5.4 + clubSupport / 16, 0, 44);
+        const saveCap = Math.round(clamp(games * 0.64, 18, 46));
+        const saveValue = (value, min, max) => Math.round(clamp(value, Math.min(min, max), max));
+        return [
+          option("보직 흔들림", "세이브 기회 부족", gaussian(-2, quality, 1.45) * 100 + 2, colors[0], { saves: saveValue(centerSv - rnd(12, 19), 0, 10), blownSaves: int(4, 9), losses: int(3, 7), holds: 0 }),
+          option("평균 마무리", "두 자릿수 세이브", gaussian(0.2, quality, 1.4) * 100 + 4, colors[1], { saves: saveValue(centerSv + rnd(-5, 3), 8, Math.min(24, saveCap)), blownSaves: int(2, 6), losses: int(1, 5), holds: 0 }),
+          option("확실한 마무리", "25~35세이브", gaussian(1.8, quality, 1.35) * 100 + 3, colors[2], { saves: saveValue(centerSv + rnd(3, 8), 22, Math.min(36, saveCap)), blownSaves: int(1, 4), losses: int(0, 4), holds: 0 }),
+          option("세이브왕급", "리그 최상위 마무리", gaussian(3.3, quality, 1.45) * 100 + 1, colors[3], { saves: saveValue(centerSv + rnd(7, 12), Math.min(34, saveCap), saveCap), blownSaves: int(0, 3), losses: int(0, 3), holds: 0 })
+        ];
+      }
+      const games = season.regular.games || Math.round(ip);
+      const centerHld = clamp(games * 0.35 + quality * 5 + clubSupport / 16, 0, 42);
+      return [
+        option("추격조", "홀드 기회 적음", gaussian(-2, quality, 1.4) * 100 + 2, colors[0], { holds: Math.round(clamp(centerHld - rnd(10, 16), 0, 8)), wins: int(0, 3), losses: int(2, 7), saves: 0 }),
+        option("셋업 후보", "두 자릿수 홀드", gaussian(0.2, quality, 1.35) * 100 + 4, colors[1], { holds: Math.round(clamp(centerHld + rnd(-4, 4), 8, 20)), wins: int(1, 5), losses: int(1, 5), saves: int(0, 2) }),
+        option("필승조", "핵심 홀드", gaussian(1.8, quality, 1.35) * 100 + 3, colors[2], { holds: Math.round(clamp(centerHld + rnd(4, 9), 18, 32)), wins: int(2, 7), losses: int(0, 4), saves: int(0, 4) }),
+        option("홀드왕급", "리그 최상위 셋업맨", gaussian(3.2, quality, 1.45) * 100 + 1, colors[3], { holds: Math.round(clamp(centerHld + rnd(10, 16), 30, 45)), wins: int(3, 8), losses: int(0, 3), saves: int(0, 5) })
+      ];
+    }
+
+    function teamRankOptions(player, season) {
+      const rankCount = season.assignment.rankCount;
+      const cut = season.assignment.playoffCut;
+      const contribution = player.role === "pitcher" ? pitcherSeasonScore(season) * 2.4 : hitterSeasonScore(season) * 2.2;
+      const teamStrength = state.player.org.strength + (teamLevel(player) - 50) * 0.16 + contribution - season.assignment.quality;
+      const center = clamp((rankCount + 1) / 2 - teamStrength / 9.8, 1, rankCount);
+      return Array.from({ length: rankCount }, (_, index) => {
+        const rank = index + 1;
+        const playoff = cut > 0 && rank <= cut;
+        const wins = estimateWins(season.assignment.games, rank, rankCount);
+        const label = season.assignment.system === "MLB" && season.assignment.levelKey === "MLB"
+          ? (rank <= 3 ? `${rank}번 시드` : rank <= 6 ? `와일드카드 ${rank - 3}` : `리그 ${rank}위`)
+          : `${rank}위`;
+        return option(label, `${wins}승 예상 · ${playoff ? "포스트시즌" : "시즌 종료"}`, gaussian(rank, center, rankCount > 14 ? 4.2 : 1.75) * 100 + 2, colors[index % colors.length], { rank, wins, playoff });
+      });
+    }
+
+    function playoffResultOptions(player, season) {
+      const levelKey = season.assignment.levelKey;
+      const rank = season.rank.rank;
+      const force = state.player.org.strength + (teamLevel(player) - 50) * 0.14 + player.overall * 0.35 + player.reputation * 0.14 - season.assignment.quality;
+      const run = clamp((force + 20) / 46, 0.35, 1.8);
+      let list;
+      if (levelKey === "KBO") list = kboPlayoffPath(rank, run);
+      else if (levelKey === "MLB") list = mlbPlayoffPath(rank, run);
+      else if (levelKey === "NPB") list = npbPlayoffPath(rank, run);
+      else list = [["준결승 탈락", 4, 0.58], ["결승 진출", 7, 0.35 * run], ["리그 우승", 10, 0.22 * run]];
+      return list.map(([label, games, weight], index) => option(label, `${games}경기 내외`, weight * 100, colors[index % colors.length], { label, games }));
+    }
+
+    function kboPlayoffPath(rank, run) {
+      if (rank === 1) return [["한국시리즈 준우승", 5, 0.5], ["한국시리즈 우승", 6, 0.7 * run]];
+      if (rank === 2) return [["플레이오프 탈락", 4, 0.55], ["한국시리즈 준우승", 9, 0.44 * run], ["한국시리즈 우승", 11, 0.26 * run]];
+      if (rank === 3) return [["준플레이오프 탈락", 4, 0.58], ["플레이오프 탈락", 8, 0.4], ["한국시리즈 준우승", 11, 0.25 * run], ["한국시리즈 우승", 13, 0.14 * run]];
+      return [["와일드카드 탈락", 2, rank === 5 ? 0.72 : 0.42], ["준플레이오프 탈락", 5, 0.4], ["플레이오프 탈락", 9, 0.22], ["한국시리즈 우승", 14, 0.08 * run]];
+    }
+    function mlbPlayoffPath(rank, run) {
+      if (rank <= 2) return [["디비전시리즈 탈락", 4, 0.5], ["챔피언십시리즈 탈락", 9, 0.34 * run], ["월드시리즈 준우승", 14, 0.22 * run], ["월드시리즈 우승", 17, 0.16 * run]];
+      return [["와일드카드 탈락", 3, 0.48], ["디비전시리즈 탈락", 6, 0.34], ["챔피언십시리즈 탈락", 11, 0.2 * run], ["월드시리즈 우승", 19, 0.08 * run]];
+    }
+    function npbPlayoffPath(rank, run) {
+      if (rank === 1) return [["파이널 스테이지 탈락", 5, 0.48], ["일본시리즈 준우승", 10, 0.42 * run], ["일본시리즈 우승", 12, 0.32 * run]];
+      return [["퍼스트 스테이지 탈락", 3, rank === 3 ? 0.58 : 0.42], ["파이널 스테이지 탈락", 8, 0.38], ["일본시리즈 준우승", 12, 0.22 * run], ["일본시리즈 우승", 14, 0.12 * run]];
+    }
+
+    function playoffHitOptions(player, season) {
+      const games = season.playoff.games || 0;
+      const avg = clamp(0.18 + player.skills.contact * 0.00175 + player.reputation * 0.00035 - (season.assignment.quality - 50) * 0.001, 0.14, 0.39);
+      const center = games * 4.05 * 0.88 * avg;
+      return spreadNumberOptions(center, Math.max(2, center * 0.28), [["침묵", 0.45], ["저조", 0.75], ["보통", 1], ["활약", 1.3], ["영웅", 1.7]], "H");
+    }
+
+    function rangeOptions(ranges, center, spread, suffix, lowerIsBetter = false) {
+      return ranges.map(([label, min, max], index) => {
+        const mid = (min + max) / 2;
+        const value = lowerIsBetter ? Number(rnd(min, max).toFixed(2)) : Math.round(rnd(min, max));
+        return option(label, `${formatRange(min, max, lowerIsBetter)} ${suffix}`, gaussian(mid, center, spread) * 100 + 2, colors[index % colors.length], { value, min, max });
+      });
+    }
+
+    function spreadNumberOptions(center, spread, bands, suffix) {
+      return bands.map(([label, multiplier], index) => {
+        const bandCenter = center * multiplier;
+        const value = Math.max(0, Math.round(rnd(bandCenter - spread * 0.48, bandCenter + spread * 0.48)));
+        return option(label, `${value} ${suffix}`, gaussian(bandCenter, center, spread) * 100 + 2, colors[index % colors.length], { value });
+      });
+    }
+
+    function applyStepResult(step, selected) {
+      const season = state.currentSeason;
+      const player = state.player;
+      if (step === "transaction") {
+        season.transaction = selected.moveType;
+        if (selected.moveType === "유지") {
+          season.done.push(step);
+          season.step = player.age >= 36 ? "retirement" : player.role === "pitcher" ? "innings" : "pa";
+          flashResult("소속팀 유지", `${player.assignment.teamName}에서 시즌을 시작합니다.`);
+          return;
+        }
+        season.pendingMove = { type: selected.moveType };
+        season.done.push(step);
+        season.step = "moveLeague";
+        flashResult(selected.moveType, "먼저 이동 대상 리그를 결정합니다.");
+        return;
+      }
+      if (step === "moveLeague") {
+        season.pendingMove.targetSystem = selected.targetSystem;
+        season.done.push(step);
+        season.step = "moveTeam";
+        flashResult(selected.label, `${season.pendingMove.type} 대상 리그가 ${selected.label}로 정해졌습니다.`);
+        return;
+      }
+      if (step === "moveTeam") {
+        const oldTeam = player.assignment.teamName;
+        player.org = selected.org;
+        const levelKey = resolveAssignmentLevel(player, selected.org, false);
+        player.assignment = makeAssignment(selected.org, levelKey);
+        player.value = calculateValue(player, 0, player.assignment.quality);
+        if (season.pendingMove.type === "포스팅") {
+          player.contractYears = contractYears(player, selected.org);
+          player.salary = contractSalary(player, selected.org, levelKey);
+          player.contractBonus = contractBonus(player, selected.org, levelKey);
+          player.contractTotal = round2(player.salary * player.contractYears + player.contractBonus);
+          player.totalEarnings += player.contractTotal;
+        } else if (season.pendingMove.type === "웨이버") {
+          player.salary = round2(Math.max(0.04, player.salary * 0.75));
+          player.contractBonus = 0;
+          player.contractTotal = round2(player.salary * player.contractYears);
+        }
+        season.assignment = { ...player.assignment };
+        season.orgName = selected.org.name;
+        season.transaction = `${season.pendingMove.type}: ${oldTeam} → ${player.assignment.teamName}`;
+        syncClubContextStats(player, selected.org, levelKey, season.pendingMove.type === "웨이버" ? -7 : season.pendingMove.type === "포스팅" ? 4 : 0);
+        season.done.push(step);
+        season.step = player.age >= 36 ? "retirement" : player.role === "pitcher" ? "innings" : "pa";
+        addLog(`${season.pendingMove.type}: ${oldTeam}에서 ${player.assignment.teamName}로 이동했습니다.`);
+        flashResult(selected.org.name, `${player.assignment.levelLabel} ${player.assignment.teamName}에서 시즌을 시작합니다.`);
+        return;
+      }
+      if (step === "retirement") {
+        if (selected.retire) {
+          state.retired = true;
+          state.phase = "retired";
+          season.done.push(step);
+          season.step = null;
+          addLog(`${player.age}세에 은퇴했습니다.`);
+          flashResult("은퇴", `${player.name}의 커리어가 종료되었습니다.`);
+          return;
+        }
+        season.done.push(step);
+        season.step = player.role === "pitcher" ? "innings" : "pa";
+        flashResult("현역 연장", `${player.age}세 시즌을 계속 진행합니다.`);
+        return;
+      }
+
+      if (step === "pa") { season.regular.pa = selected.value; season.step = "hits"; }
+      else if (step === "hits") { season.regular.hits = selected.value; season.step = "steals"; }
+      else if (step === "steals") { season.regular.steals = selected.value; season.step = "teamRank"; }
+      else if (step === "innings") { season.regular.innings = selected.value; season.regular.games = selected.games; season.regular.starts = selected.starts; season.step = "strikeouts"; }
+      else if (step === "strikeouts") { season.regular.strikeouts = selected.value; season.step = "era"; }
+      else if (step === "era") { season.regular.era = selected.value; season.step = "pitcherRoleStat"; }
+      else if (step === "pitcherRoleStat") {
+        Object.assign(season.regular, {
+          wins: selected.wins || 0,
+          losses: selected.losses || 0,
+          saves: selected.saves || 0,
+          holds: selected.holds || 0,
+          blownSaves: selected.blownSaves || 0
+        });
+        season.step = "teamRank";
+      }
+      else if (step === "teamRank") { season.rank = { rank: selected.rank, wins: selected.wins, playoff: selected.playoff, label: selected.label }; season.step = selected.playoff ? "playoffResult" : "settlement"; }
+      else if (step === "playoffResult") {
+        season.playoff.result = selected.label;
+        season.playoff.games = selected.games;
+        if (player.role === "pitcher") {
+          season.playoff.pitchingIp = estimatePlayoffInnings(player, selected.games);
+          season.step = "playoffStrikeouts";
+        } else season.step = "playoffHits";
+      }
+      else if (step === "playoffHits") { season.playoff.hits = selected.value; season.step = "playoffSteals"; }
+      else if (step === "playoffSteals") { season.playoff.steals = selected.value; season.step = "settlement"; }
+      else if (step === "playoffStrikeouts") { season.playoff.strikeouts = selected.value; season.step = "playoffEra"; }
+      else if (step === "playoffEra") { season.playoff.era = selected.value; season.step = "settlement"; }
+
+      season.done.push(step);
+      flashResult(selected.label, `${stepTitle(step)} 결과: ${selected.sub || selected.value || selected.label}`);
+    }
+
+    function finalizeSeason() {
+      const season = state.currentSeason;
+      const player = state.player;
+      const oldOverall = player.overall;
+      const oldValue = player.value;
+      const oldSkills = { ...player.skills };
+      addDerivedStats(player, season);
+      const score = player.role === "pitcher" ? pitcherSeasonScore(season) : hitterSeasonScore(season);
+      applyPerformanceGrowth(player, season, score);
+      player.overall = calculateOverall(player.role, player.skills);
+      const awards = getAwards(player, season, score);
+      player.awards.push(...awards);
+      player.reputation = Math.round(clamp(player.reputation + score * 5 + awards.length * 5 + playoffBoost(season), 0, 100));
+      const oldTeamLevel = teamLevel(player);
+      const oldFanCount = fanCount(player);
+      updateExpectations(player, season, score, awards);
+      player.value = calculateValue(player, score, season.assignment.quality);
+      const movement = applyMovement(player, season, score);
+      const movementText = season.transaction && season.transaction !== "유지" ? `${season.transaction} · ${movement}` : movement;
+      const changes = skillChangeList(oldSkills, player.skills);
+      const record = {
+        seasonNo: season.seasonNo, age: season.age, role: player.role, team: season.assignment.teamName, org: season.orgName,
+        level: season.assignment.levelLabel, levelKey: season.assignment.levelKey, rank: season.rank?.label || "-", wins: season.rank?.wins || 0,
+        playoff: season.playoff.result || "미진출", regular: { ...season.regular }, playoffStats: { ...season.playoff },
+        contract: { years: player.contractYears, salary: player.salary, bonus: player.contractBonus || 0, total: player.contractTotal || round2((player.salary || 0) * (player.contractYears || 0)), text: contractText(player) },
+        oldOverall, newOverall: player.overall, oldValue, newValue: player.value, score: round1(score), awards, changes, movement: movementText,
+        oldTeamLevel, newTeamLevel: teamLevel(player), oldFanCount, newFanCount: fanCount(player),
+        oldTeamExpectation: oldTeamLevel, newTeamExpectation: teamLevel(player), oldFanExpectation: oldFanCount, newFanExpectation: fanCount(player),
+        summary: seasonSummaryText(season)
+      };
+      state.history.unshift(record);
+      addLog(`${record.age}세 시즌 종료: ${record.summary}. OVR ${oldOverall}→${player.overall}, ${movementText}.`);
+      maybePhoenixLeague(player, record);
+      const roleOffer = getRoleChangeOffer(player, season, score);
+      player.seasonNo += 1;
+      player.age += 1;
+      player.contractYears = Math.max(0, player.contractYears - 1);
+      let nextPhase = "season";
+      if (player.contractYears === 0 && !state.retired) {
+        if (canEnterFreeAgency(player)) {
+          state.freeAgent = true;
+          nextPhase = "faDecision";
+          addLog(`${player.age}세 시즌을 앞두고 FA 자격을 얻었습니다.`);
+        } else {
+          renewControlledContract(player);
+          state.freeAgent = false;
+          const service = player.org?.system === "KBO" ? `${topLeagueServiceYears(player, "KBO")}/${kboFaRequiredYears(player)}시즌` : "서비스타임 미충족";
+          addLog(`${player.age}세 시즌을 앞두고 FA 자격 전이라 원 소속팀과 1년 계약을 갱신했습니다. (${service})`);
+        }
+      }
+      state.currentSeason = null;
+      if (roleOffer) {
+        player.roleOffer = roleOffer;
+        nextPhase = "roleChoice";
+        addLog(`보직 변경 제안: ${roleOffer.from} → ${roleOffer.to}.`);
+      }
+      state.pendingAfterReviewPhase = nextPhase;
+      state.reviewTab = "summary";
+      state.reviewTeamIndex = 0;
+      state.phase = "seasonReview";
+      flashResult("시즌 결산 완료", `${record.summary}. 능력치는 활약상에 따라 자동으로 반영되었습니다.`);
+    }
+
+    function applyPerformanceGrowth(player, season, score) {
+      const ageCurve = player.age <= 22 ? 1.1 : player.age <= 27 ? 0.55 : player.age <= 31 ? 0.1 : player.age <= 35 ? -0.6 : -1.35;
+      const gapBonus = Math.max(0, (player.potential || player.overall) - player.overall) * 0.045;
+      if (player.role === "pitcher") {
+        const ip = season.regular.innings || 0;
+        const k9 = (season.regular.strikeouts || 0) / Math.max(1, ip) * 9;
+        const era = season.regular.era || 5.2;
+        player.skills.stuff = seasonBump(player, season, player.skills.stuff, score * 1.45 + (k9 - 8) * 0.9 + ageCurve + gapBonus);
+        player.skills.command = seasonBump(player, season, player.skills.command, score * 1.25 + (4.1 - era) * 1.8 + ageCurve + gapBonus);
+        player.skills.stamina = seasonBump(player, season, player.skills.stamina, score * 0.85 + (ip - 95) * 0.018 + ageCurve * 0.8 + gapBonus);
+        player.skills.defense = seasonBump(player, season, player.skills.defense, score * 0.35 + ageCurve * 0.3);
+      } else {
+        const pa = season.regular.pa || 1;
+        const avg = (season.regular.hits || 0) / Math.max(1, pa * 0.88);
+        const sb = season.regular.steals || 0;
+        player.skills.contact = seasonBump(player, season, player.skills.contact, score * 1.35 + (avg - 0.255) * 42 + ageCurve + gapBonus);
+        player.skills.power = seasonBump(player, season, player.skills.power, score * 0.82 + (pa - 430) * 0.006 + ageCurve * 0.55 + gapBonus);
+        player.skills.speed = seasonBump(player, season, player.skills.speed, score * 0.7 + (sb - 12) * 0.18 + ageCurve * 0.45);
+        player.skills.defense = seasonBump(player, season, player.skills.defense, score * 0.55 + ageCurve * 0.35 + gapBonus * 0.6);
+      }
+    }
+
+    function seasonBump(player, season, value, amount) {
+      const factor = leagueGrowthFactor(season.assignment.levelKey);
+      const room = Math.max(0, (player.potential || player.overall) - player.overall);
+      const roomFactor = clamp(0.58 + room / 34, 0.58, 1.12);
+      const scaled = amount > 0 ? amount * factor * roomFactor : amount * 0.92;
+      return bump(value, clamp(scaled, -5.5, maxSeasonGrowth(season.assignment.levelKey)));
+    }
+
+    function leagueGrowthFactor(levelKey) {
+      return {
+        KBO: 0.5, KBO_FUT: 0.52, NPB: 0.62, NPB_FARM: 0.56, MLB: 0.82,
+        AAA: 0.68, AA: 0.62, APLUS: 0.55, A: 0.5, RK: 0.46
+      }[levelKey] ?? 0.58;
+    }
+
+    function maxSeasonGrowth(levelKey) {
+      return {
+        KBO: 3.2, KBO_FUT: 3.8, NPB: 3.8, NPB_FARM: 4.0, MLB: 4.8,
+        AAA: 4.4, AA: 4.2, APLUS: 3.9, A: 3.6, RK: 3.4
+      }[levelKey] ?? 3.8;
+    }
+
+    function addDerivedStats(player, season) {
+      if (player.role === "pitcher") {
+        const ip = Number(season.regular.innings || 0);
+        const era = Number(season.regular.era || 4.5);
+        const starter = player.position.includes("선발");
+        const closer = player.position.includes("마무리");
+        const games = season.regular.games || (starter ? Math.max(1, Math.round(ip / rnd(4.7, 6.1))) : Math.max(1, Math.min(ip, Math.round(ip / rnd(1.02, closer ? 1.26 : 1.34)))));
+        const starts = season.regular.starts ?? (starter ? games : 0);
+        const k9 = (season.regular.strikeouts || 0) / Math.max(1, ip) * 9;
+        const quality = clamp((4.8 - era) + (k9 - 8) * 0.35, -3, 4);
+        const wins = season.regular.wins ?? (starter ? Math.round(clamp(ip / 190 * 14 + quality * 1.5 + rnd(-2, 3), 0, 22)) : Math.round(clamp(quality + rnd(0, 5), 0, 9)));
+        const losses = season.regular.losses ?? Math.round(clamp(games * (starter ? 0.32 : 0.08) - quality * 1.4 + rnd(-1, 2), 0, starter ? 18 : 7));
+        const saves = season.regular.saves ?? (closer ? Math.round(clamp(18 + quality * 7 + rnd(-6, 9), 0, 50)) : 0);
+        const holds = season.regular.holds ?? (!starter && !closer ? Math.round(clamp(12 + quality * 5 + rnd(-5, 8), 0, 40)) : 0);
+        const whip = clamp(1.55 - player.skills.command * 0.0045 - player.skills.stuff * 0.002 + (season.assignment.quality - 50) * 0.004 + rnd(-0.07, 0.08), 0.78, 1.9);
+        const roleValue = starter ? wins * 0.08 - losses * 0.05 : closer ? saves * 0.035 - (season.regular.blownSaves || 0) * 0.12 : holds * 0.035 + saves * 0.025;
+        const war = round1(clamp(ip / (starter ? 185 : 70) * 1.35 + (4.55 - era) * 0.72 + (k9 - 7.4) * 0.18 + roleValue, -1.2, 9.5));
+        Object.assign(season.regular, { games, starts, wins, losses, saves, holds, blownSaves: season.regular.blownSaves || 0, whip: whip.toFixed(2), war });
+        return;
+      }
+
+      const pa = Number(season.regular.pa || 0);
+      const hits = Number(season.regular.hits || 0);
+      const walks = Math.round(clamp(pa * (0.065 + player.skills.contact * 0.00035 + rnd(-0.012, 0.018)), 0, pa * 0.18));
+      const hbp = Math.round(clamp(pa * rnd(0.004, 0.012), 0, 18));
+      const sac = Math.round(clamp(pa * rnd(0.01, 0.035), 0, 22));
+      const ab = Math.max(hits, Math.round(pa - walks - hbp - sac));
+      const powerRate = clamp((player.skills.power - 38) / 62, 0.03, 0.95);
+      const hr = Math.round(clamp(hits * (0.035 + powerRate * 0.15) * season.assignment.runEnv + rnd(-2, 3), 0, Math.max(0, hits * 0.42)));
+      const triples = Math.round(clamp((hits - hr) * (0.01 + player.skills.speed / 2500) + rnd(-1, 1), 0, Math.max(0, hits - hr)));
+      const doubles = Math.round(clamp((hits - hr - triples) * (0.12 + powerRate * 0.16) + rnd(-2, 3), 0, Math.max(0, hits - hr - triples)));
+      const singles = Math.max(0, hits - doubles - triples - hr);
+      const totalBases = singles + doubles * 2 + triples * 3 + hr * 4;
+      const avg = hits / Math.max(1, ab);
+      const obp = (hits + walks + hbp) / Math.max(1, ab + walks + hbp + sac);
+      const slg = totalBases / Math.max(1, ab);
+      const ops = obp + slg;
+      const runs = Math.round(clamp((hits + walks) * rnd(0.28, 0.42) + hr * rnd(0.65, 1.05), 0, 150));
+      const rbi = Math.round(clamp(hits * rnd(0.22, 0.38) + hr * rnd(1.25, 1.95), 0, 160));
+      const strikeouts = Math.round(clamp(pa * (0.24 - player.skills.contact * 0.0012 + season.assignment.quality * 0.0007 + rnd(-0.025, 0.03)), 5, pa * 0.42));
+      Object.assign(season.regular, {
+        ab, walks, hbp, doubles, triples, hr, runs, rbi, strikeouts,
+        avg: formatRate(avg), obp: formatRate(obp), slg: formatRate(slg), ops: formatRate(ops),
+        war: round1(clamp((pa / 600) * ((ops - 0.68) * 8.2 + 1.1) + hr * 0.035 + (season.regular.steals || 0) * 0.018 + (player.skills.defense - 50) * 0.018, -1.5, 10.5))
+      });
+    }
+
+    function bump(value, amount) {
+      return Math.round(clamp(value + amount, 20, 99));
+    }
+
+    function applyMovement(player, season, score) {
+      const order = levelOrder[player.org.system];
+      const currentIndex = order.indexOf(season.assignment.levelKey);
+      let nextIndex = currentIndex;
+      if (score >= 3.8) nextIndex += 2;
+      else if (score >= 1.65) nextIndex += 1;
+      else if (score <= -3.2) nextIndex -= 2;
+      else if (score <= -1.35) nextIndex -= 1;
+      const upwardCheckIndex = clamp(nextIndex + 1, 0, order.length - 1);
+      if (player.overall >= levelInfo[order[upwardCheckIndex]].quality + 6 && score > 0.4) nextIndex += 1;
+      nextIndex = clamp(nextIndex, 0, order.length - 1);
+      const old = player.assignment.levelLabel;
+      player.assignment = makeAssignment(player.org, order[nextIndex]);
+      if (nextIndex > currentIndex) return `${old}에서 ${player.assignment.levelLabel} 승격`;
+      if (nextIndex < currentIndex) return `${old}에서 ${player.assignment.levelLabel} 강등`;
+      return `${player.assignment.levelLabel} 잔류`;
+    }
+
+    function updateExpectations(player, season, score, awards) {
+      const levelPressure = ["KBO", "NPB", "MLB"].includes(season.assignment.levelKey) ? 1.1 : 0.72;
+      const awardBoost = awards.length * 4;
+      const playoff = playoffBoost(season) * 0.35;
+      const rankSwing = season.rank?.rank ? ((season.assignment.rankCount + 1) / 2 - season.rank.rank) * 1.15 : 0;
+      const teamDelta = rankSwing + score * 0.9 * levelPressure + playoff * 0.6 - (score < -1 ? 1.8 : 0);
+      const fanDelta = score * 4.0 * levelPressure + awardBoost * 1.25 + playoff + (season.playoff.result && season.playoff.result !== "미진출" ? 2 : 0);
+      setTeamLevel(player, teamLevel(player) + teamDelta);
+      setFanCount(player, fanCount(player) + fanDelta);
+    }
+
+    function getRoleChangeOffer(player, season, score) {
+      if (player.role !== "pitcher") return null;
+      const era = Number(season.regular.era || 9);
+      const ip = Number(season.regular.innings || 0);
+      const k9 = (season.regular.strikeouts || 0) / Math.max(1, ip) * 9;
+      const current = player.position;
+      if (current.includes("선발") && (score <= -1.6 || era >= 5.2 || player.skills.stamina < 48)) {
+        return { from: current, to: "불펜투수", reason: "선발 성과와 체력 지표가 불펜 전환에 가깝습니다." };
+      }
+      if (current.includes("불펜") && score >= 2.6 && ip >= 65 && player.skills.stamina >= 60 && era <= 3.3) {
+        return { from: current, to: "선발투수", reason: "긴 이닝 소화와 성적이 선발 전환 조건을 충족했습니다." };
+      }
+      if (current.includes("불펜") && score >= 2.0 && era <= 3.0 && k9 >= 9.0 && (season.regular.holds || 0) >= 18) {
+        return { from: current, to: "마무리투수", reason: "필승조 성적이 마무리 후보 수준입니다." };
+      }
+      if (current.includes("마무리") && ((season.regular.saves || 0) < 12 || (season.regular.blownSaves || 0) >= 7 || score <= -1.3)) {
+        return { from: current, to: "불펜투수", reason: "세이브 기회와 마무리 안정성이 부족했습니다." };
+      }
+      return null;
+    }
+
+    function acceptRoleChange(accept) {
+      const offer = state.player.roleOffer;
+      if (!offer) {
+        state.phase = state.freeAgent ? "faDecision" : "season";
+        finishAction();
+        return;
+      }
+      if (accept) {
+        state.player.position = offer.to;
+        addLog(`보직 변경 수락: ${offer.from} → ${offer.to}.`);
+        flashResult("보직 변경", `${offer.to}로 다음 시즌을 준비합니다.`);
+      } else {
+        addLog(`보직 변경 거절: ${offer.from} 유지.`);
+        flashResult("보직 유지", `${offer.from} 보직을 유지합니다.`);
+      }
+      state.player.roleOffer = null;
+      state.phase = state.freeAgent ? "faDecision" : "season";
+      finishAction();
+    }
+
+    function maybePhoenixLeague(player, record) {
+      if (player.org.system !== "NPB" || player.age > 27 || record.levelKey === "NPB") return;
+      const gain = clamp(record.score * 0.35 + rnd(0.1, 0.9), -0.4, 1.6);
+      if (gain <= 0) return;
+      const key = player.role === "pitcher" ? "command" : "contact";
+      player.skills[key] = bump(player.skills[key], gain);
+      player.overall = calculateOverall(player.role, player.skills);
+      addLog(`미야자키 피닉스 리그 참가: ${skillLabels[key]} 경험치가 추가 반영되었습니다.`);
+    }
+
+    function hitterSeasonScore(season) {
+      const pa = season.regular.pa || 0;
+      const hits = season.regular.hits || 0;
+      const steals = season.regular.steals || 0;
+      const avg = hits / Math.max(1, pa * 0.88);
+      const playing = pa / Math.max(1, season.assignment.games * 4.25);
+      const rankBoost = season.rank ? (season.assignment.playoffCut + 1 - Math.min(season.rank.rank, season.assignment.playoffCut + 1)) * 0.12 : 0;
+      return clamp((avg - 0.245) * 15 + (playing - 0.52) * 2.6 + steals / 26 + rankBoost + playoffBoost(season) * 0.08, -5.2, 6.3);
+    }
+
+    function pitcherSeasonScore(season) {
+      const ip = season.regular.innings || 0;
+      const k = season.regular.strikeouts || 0;
+      const era = season.regular.era || 5.2;
+      const k9 = k / Math.max(1, ip) * 9;
+      const workload = ip / (state.player.position.includes("선발") ? 175 : 70);
+      const rankBoost = season.rank ? (season.assignment.playoffCut + 1 - Math.min(season.rank.rank, season.assignment.playoffCut + 1)) * 0.12 : 0;
+      const roleScore = state.player.position.includes("선발")
+        ? (season.regular.wins || 0) * 0.08 - (season.regular.losses || 0) * 0.07
+        : state.player.position.includes("마무리")
+          ? (season.regular.saves || 0) * 0.055 - (season.regular.blownSaves || 0) * 0.18 - (season.regular.losses || 0) * 0.08
+          : (season.regular.holds || 0) * 0.06 + (season.regular.saves || 0) * 0.04 - (season.regular.losses || 0) * 0.08;
+      return clamp((4.2 - era) * 1.05 + (k9 - 7.3) * 0.42 + workload + rankBoost + roleScore + playoffBoost(season) * 0.08, -5.4, 6.4);
+    }
+
+    function playoffBoost(season) {
+      const result = season.playoff.result || "";
+      if (result.includes("준우승")) return 7;
+      if (result.includes("우승")) return 12;
+      if (result.includes("월드시리즈") || result.includes("일본시리즈") || result.includes("한국시리즈")) return 5;
+      if (result.includes("결승") || result.includes("챔피언십") || result.includes("파이널")) return 3;
+      return season.rank?.playoff ? 1 : 0;
+    }
+
+    function getAwards(player, season, score) {
+      const top = ["KBO", "MLB", "NPB"].includes(season.assignment.levelKey);
+      const awards = [];
+      if (player.role === "hitter") {
+        const pa = season.regular.pa || 0;
+        const avg = (season.regular.hits || 0) / Math.max(1, pa * 0.88);
+        if (pa > season.assignment.games * 3 && avg >= 0.32) awards.push(top ? awardName(player.org.system, "batting") : "리그 타격왕");
+        if ((season.regular.hr || 0) >= (season.assignment.levelKey === "MLB" ? 35 : 25)) awards.push(top ? awardName(player.org.system, "slugger") : "리그 홈런왕");
+        if ((season.regular.steals || 0) >= 35) awards.push(top ? awardName(player.org.system, "steal") : "리그 도루왕");
+        if (score >= 2.2) awards.push(top ? awardName(player.org.system, "allstar") : "마이너 올스타");
+        if (score >= 4.4) awards.push(top ? awardName(player.org.system, "mvp") : "리그 MVP");
+      } else {
+        const ip = season.regular.innings || 0;
+        const era = season.regular.era || 9;
+        const saves = season.regular.saves || 0;
+        const holds = season.regular.holds || 0;
+        const losses = season.regular.losses || 0;
+        const blown = season.regular.blownSaves || 0;
+        const starter = player.position.includes("선발");
+        const closer = player.position.includes("마무리");
+        if (starter) {
+          if (ip > season.assignment.games * 0.68 && era <= 2.7) awards.push(top ? awardName(player.org.system, "era") : "리그 평균자책점 1위");
+          if ((season.regular.strikeouts || 0) >= (season.assignment.levelKey === "MLB" ? 180 : 145)) awards.push(top ? awardName(player.org.system, "strikeout") : "리그 탈삼진왕");
+          if ((ip >= 110 && era <= 3.35 && score >= 2.1) || (season.regular.wins || 0) >= 13) awards.push(top ? awardName(player.org.system, "allstar") : "마이너 올스타");
+          if (ip >= 145 && era <= 2.85 && score >= 4.1) awards.push(top ? awardName(player.org.system, "pitcher") : "리그 최우수 투수");
+        } else if (closer) {
+          if (saves >= (season.assignment.levelKey === "MLB" ? 35 : 28)) awards.push(top ? awardName(player.org.system, "save") : "리그 세이브 1위");
+          if (saves >= 24 && era <= 3.2 && blown <= 5 && losses <= 5) awards.push(top ? awardName(player.org.system, "allstar") : "마이너 올스타");
+          if (saves >= 38 && era <= 2.3 && blown <= 3 && score >= 3.8) awards.push(top ? awardName(player.org.system, "reliever") : "리그 최우수 구원투수");
+        } else {
+          if (holds >= (season.assignment.levelKey === "MLB" ? 28 : 24)) awards.push(top ? awardName(player.org.system, "hold") : "리그 홀드 1위");
+          if (holds >= 20 && era <= 3.1 && losses <= 5) awards.push(top ? awardName(player.org.system, "allstar") : "마이너 올스타");
+          if (holds >= 30 && era <= 2.4 && score >= 3.8) awards.push(top ? awardName(player.org.system, "reliever") : "리그 최우수 구원투수");
+        }
+      }
+      if (isChampionResult(season.playoff.result)) awards.push(championshipAwardName(player.org.system, season.assignment.levelKey));
+      return [...new Set(awards)].slice(0, 5);
+    }
+
+    function awardName(system, type) {
+      const map = {
+        KBO: { batting: "KBO 타율 1위", slugger: "KBO 홈런 1위", steal: "KBO 도루 1위", era: "KBO 평균자책점 1위", strikeout: "KBO 탈삼진 1위", save: "KBO 세이브 1위", hold: "KBO 홀드 1위", allstar: "KBO 올스타", mvp: "KBO MVP", pitcher: "KBO MVP 후보", reliever: "KBO 구원상 후보" },
+        MLB: { batting: "Silver Slugger Award 후보", slugger: "Silver Slugger Award 후보", steal: "MLB 도루 1위", era: "ERA Title", strikeout: "MLB Strikeout Leader", save: "MLB Saves Leader", hold: "MLB Holds Leader", allstar: "MLB All-Star", mvp: "Most Valuable Player Award 후보", pitcher: "Cy Young Award 후보", reliever: "Mariano Rivera/Trevor Hoffman Reliever of the Year 후보" },
+        NPB: { batting: "Best Nine Award 후보", slugger: "Best Nine Award 후보", steal: "NPB 도루왕", era: "NPB 최우수 평균자책점", strikeout: "NPB 최다 탈삼진", save: "NPB 최다 세이브", hold: "NPB 최우수 중간계투", allstar: "NPB 올스타", mvp: "NPB Most Valuable Player 후보", pitcher: "Eiji Sawamura Award 후보", reliever: "NPB 최우수 중간계투 후보" }
+      };
+      return map[system]?.[type] || "수상";
+    }
+
+    function isChampionResult(result) {
+      const value = result || "";
+      return value.includes("우승") && !value.includes("준우승");
+    }
+
+    function championshipAwardName(system, levelKey) {
+      if (levelKey === "MLB") return "World Series Championship Ring";
+      if (levelKey === "KBO") return "한국시리즈 우승 반지";
+      if (levelKey === "NPB") return "일본시리즈 우승 반지";
+      return "리그 우승 반지";
+    }
+
+    function skillChangeList(oldSkills, newSkills) {
+      return Object.keys(newSkills).map((key) => ({ key, label: skillLabels[key], old: oldSkills[key] || 0, now: newSkills[key], diff: (newSkills[key] || 0) - (oldSkills[key] || 0) })).filter((item) => item.old || item.now);
+    }
+
+    function seasonSummaryText(season) {
+      if (season.role === "pitcher") {
+        const base = `${season.regular.innings || 0}이닝, ${season.regular.strikeouts || 0}K, ERA ${season.regular.era || "-"}, WHIP ${season.regular.whip || "-"}, WAR ${season.regular.war ?? "-"}`;
+        if (state.player.position.includes("선발")) return `${season.regular.wins || 0}승 ${season.regular.losses || 0}패, ${base}`;
+        if (state.player.position.includes("마무리")) return `${season.regular.games || 0}G, ${season.regular.saves || 0}SV/${season.regular.blownSaves || 0}BS, ${base}`;
+        return `${season.regular.games || 0}G, ${season.regular.holds || 0}HLD, ${base}`;
+      }
+      return `${season.regular.pa || 0}타석, ${season.regular.hits || 0}안타, ${season.regular.hr || 0}홈런, ${season.regular.steals || 0}도루, OPS ${season.regular.ops || "-"}, WAR ${season.regular.war ?? "-"}`;
+    }
+
+    function estimatePlayoffInnings(player, games) {
+      if (player.position.includes("선발")) return round1(Math.round(clamp(games / 4.2, 1, 5)) * rnd(4.7, 6.3));
+      if (player.position.includes("마무리")) return round1(rnd(games * 0.45, games * 0.9));
+      return round1(rnd(games * 0.55, games * 1.15));
+    }
+
+    function estimateWins(games, rank, totalRanks) {
+      const pct = 0.66 - ((rank - 1) / Math.max(1, totalRanks - 1)) * 0.3 + rnd(-0.012, 0.012);
+      return Math.round(games * clamp(pct, 0.32, 0.7));
+    }
+
+    function stepTitle(step) {
+      if (step === "innings") return pitcherUsageTitle(state.player);
+      if (step === "pitcherRoleStat") return pitcherRoleStatTitle(state.player);
+      return {
+        transaction: "소속 상태", moveLeague: "이동 리그", moveTeam: "이동 팀",
+        retirement: "은퇴 여부", pa: "타석의 양", hits: "안타 수", steals: "도루 수", innings: "이닝의 양",
+        strikeouts: "삼진 카운트", era: "방어율", pitcherRoleStat: "보직 기록", teamRank: "팀 순위", playoffResult: "플레이오프 결과",
+        playoffHits: "PO 안타 수", playoffSteals: "PO 도루 수", playoffStrikeouts: "PO 삼진 수", playoffEra: "PO 방어율",
+        settlement: "시즌 결산"
+      }[step] || "룰렛";
+    }
+
+    function stepCopy(step) {
+      if (step === "transaction" && state.player?.transactionLockSeason === state.player?.seasonNo) return "새 계약 첫 시즌은 소속팀 유지";
+      if (step === "innings") return state.player.position.includes("선발") ? "GS와 IP 결정" : "G와 IP 결정";
+      if (step === "pitcherRoleStat") return state.player.position.includes("선발") ? "승/패 결정" : state.player.position.includes("마무리") ? "세이브/블론 결정" : "홀드 결정";
+      return {
+        transaction: "유지, 트레이드, 웨이버, 포스팅", moveLeague: "변경될 리그 먼저 결정", moveTeam: "그 다음 팀 결정",
+        retirement: "36세부터 등장", pa: "출전 기회와 건강", hits: "컨택과 리그 수준", steals: "주루 능력",
+        innings: "보직과 체력", strikeouts: "구위와 리그 수준", era: "제구와 구위", teamRank: "팀 전력과 기여도",
+        playoffResult: "리그 포맷 반영", playoffHits: "포스트시즌 타격", playoffSteals: "포스트시즌 주루",
+        playoffStrikeouts: "포스트시즌 탈삼진", playoffEra: "포스트시즌 실점 억제", settlement: "성적 기반 자동 반영"
+      }[step] || "";
+    }
+
+    function pitcherUsageTitle(player) {
+      if (!player || player.role !== "pitcher") return "출전 규모";
+      if (player.position.includes("선발")) return "선발 등판 수";
+      if (player.position.includes("마무리")) return "마무리 등판 수";
+      return "불펜 등판 수";
+    }
+
+    function pitcherRoleStatTitle(player) {
+      if (!player || player.role !== "pitcher") return "보직 기록";
+      if (player.position.includes("선발")) return "승/패";
+      if (player.position.includes("마무리")) return "세이브";
+      return "홀드";
+    }
+
+    function stepSequence(role, includeRetirement, includePlayoff) {
+      const regular = role === "pitcher" ? ["innings", "strikeouts", "era", "pitcherRoleStat", "teamRank"] : ["pa", "hits", "steals", "teamRank"];
+      const playoff = role === "pitcher" ? ["playoffResult", "playoffStrikeouts", "playoffEra"] : ["playoffResult", "playoffHits", "playoffSteals"];
+      return ["transaction", "moveLeague", "moveTeam", ...(includeRetirement ? ["retirement"] : []), ...regular, ...(includePlayoff ? playoff : []), "settlement"];
+    }
+
+    async function spinWheel(options, selected, centerText) {
+      normalizeOptions(options);
+      renderWheel(options, centerText);
+      const total = options.reduce((sum, item) => sum + item.weight, 0);
+      let start = 0;
+      let targetMid = 0;
+      let targetAngle = 0;
+      for (const item of options) {
+        const angle = item.weight / total * 360;
+        if (item.id === selected.id) {
+          targetAngle = angle;
+          const jitter = rnd(-Math.max(1, angle * 0.33), Math.max(1, angle * 0.33));
+          targetMid = start + angle / 2 + clamp(jitter, -angle * 0.42, angle * 0.42);
+        }
+        start += angle;
+      }
+      const target = 360 - targetMid + rnd(-1.4, 1.4) * Math.min(1.7, Math.max(0.4, targetAngle / 20));
+      const delta = (target - (spinRotation % 360) + 360) % 360;
+      spinRotation += 1440 + delta;
+      await new Promise((resolve) => requestAnimationFrame(resolve));
+      els.wheel.style.setProperty("--spin", `${spinRotation}deg`);
+      await new Promise((resolve) => setTimeout(resolve, 1580));
+      els.wheelCenter.textContent = selected.label;
+    }
+
+    function renderWheel(options, centerText) {
+      normalizeOptions(options);
+      els.wheel.innerHTML = buildWheelSvg(options);
+      els.wheelCenter.textContent = centerText;
+      els.candidateGrid.innerHTML = options.map((item) => `
+        <div class="candidate" style="--candidate-color:${item.color}">
+          <span>${escapeHtml(item.sub || "후보")}</span>
+          <strong>${escapeHtml(item.label)}</strong>
+          <small>룰렛 조각 크기로 가중치를 확인하세요.</small>
+        </div>
+      `).join("");
+    }
+
+    function buildWheelSvg(options) {
+      const cx = 100, cy = 100, r = 98;
+      const total = options.reduce((sum, item) => sum + item.weight, 0) || 1;
+      let start = -90;
+      const parts = options.map((item) => {
+        const angle = item.weight / total * 360;
+        const end = start + angle;
+        const path = describeArc(cx, cy, r, start, end);
+        const mid = start + angle / 2;
+        const textPoint = polarToCartesian(cx, cy, angle < 16 ? 76 : 63, mid);
+        const label = trimLabel(item.label, Math.max(2, Math.floor(angle / 4.2) + 2));
+        const font = clamp(5.2, Math.min(11, angle / 3.1, 122 / Math.max(4, label.length * 1.7)), 11);
+        const text = angle < 5.5 ? "" : `<text class="wheel-label" style="font-size:${font.toFixed(1)}px" x="${textPoint.x.toFixed(2)}" y="${textPoint.y.toFixed(2)}" text-anchor="middle" dominant-baseline="middle" transform="rotate(${(mid + 90).toFixed(2)} ${textPoint.x.toFixed(2)} ${textPoint.y.toFixed(2)})">${escapeHtml(label)}</text>`;
+        start = end;
+        return `<path d="${path}" fill="${item.color}"></path>${text}`;
+      }).join("");
+      return `<svg viewBox="0 0 200 200" aria-hidden="true">${parts}<circle cx="100" cy="100" r="31" fill="#fffaf0" stroke="#fff" stroke-width="4"></circle></svg>`;
+    }
+
+    function describeArc(cx, cy, r, startAngle, endAngle) {
+      const start = polarToCartesian(cx, cy, r, endAngle);
+      const end = polarToCartesian(cx, cy, r, startAngle);
+      const largeArcFlag = endAngle - startAngle <= 180 ? "0" : "1";
+      return ["M", cx, cy, "L", start.x, start.y, "A", r, r, 0, largeArcFlag, 0, end.x, end.y, "Z"].join(" ");
+    }
+
+    function polarToCartesian(cx, cy, r, angle) {
+      const rad = angle * Math.PI / 180;
+      return { x: cx + r * Math.cos(rad), y: cy + r * Math.sin(rad) };
+    }
+
+    function normalizeOptions(options) {
+      options.forEach((item, index) => {
+        item.id ||= `${Date.now()}-${index}-${Math.random()}`;
+        item.color ||= colors[index % colors.length];
+        item.weight = Math.max(0.1, Number(item.weight) || 1);
+      });
+      return options;
+    }
+
+    function weightedPick(options) {
+      normalizeOptions(options);
+      const total = options.reduce((sum, item) => sum + item.weight, 0);
+      let cursor = Math.random() * total;
+      for (const item of options) {
+        cursor -= item.weight;
+        if (cursor <= 0) return item;
+      }
+      return options[options.length - 1];
+    }
+
+    function option(label, sub, weight, color, extra = {}) {
+      return { label, sub, weight, color, ...extra };
+    }
+
+    function gaussian(value, center, spread) {
+      const safe = Math.max(0.1, spread);
+      return Math.exp(-Math.pow(value - center, 2) / (2 * safe * safe));
+    }
+
+    function finishAction() {
+      saveCareer();
+      busy = false;
+      setBusy(false);
+      renderAll();
+    }
+
+    function setBusy(isBusy) {
+      busy = isBusy;
+      [els.mainSpinBtn, els.contractBtn, els.saveBtn, els.resetBtn].forEach((button) => { button.disabled = isBusy; });
+    }
+
+    function renderAll() {
+      if (!state.player) return;
+      els.careerScreen.classList.toggle("review-mode", state.phase === "seasonReview");
+      renderHeader();
+      renderPlayerCard();
+      renderActions();
+      renderSteps();
+      renderSeasonSummary();
+      renderTotals();
+      renderHistory();
+      renderLogs();
+      renderSettlementReview();
+    }
+
+    function renderHeader() {
+      const player = state.player;
+      els.careerTitle.textContent = player.name;
+      const assignment = player.assignment ? `${player.assignment.teamName} · ${player.assignment.levelLabel}` : "소속팀 결정 전";
+      els.careerSubtitle.textContent = `${player.nationality} · ${player.position} · ${player.age}세 · ${assignment}`;
+      els.careerYear.textContent = state.retired ? "은퇴" : `${player.seasonNo}년차`;
+      els.careerYear.classList.toggle("dark", state.retired);
+    }
+
+    function renderPlayerCard() {
+      const player = state.player;
+      els.overallValue.textContent = player.overall ?? "--";
+      els.valueText.textContent = player.value ? money(player.value) : "-";
+      els.teamText.textContent = player.assignment ? `${player.assignment.teamName} · ${contractText(player)}` : "능력치 또는 소속 결정 전";
+      const league = player.assignment ? player.assignment.levelLabel : (player.org?.system || player.startSystem || "-");
+      const baseMetrics = [
+        ["소속리그", league], ["포지션", player.position],
+        ["성향", player.archetype], ["팀 수준", `${teamLevel(player)}/100`],
+        ["팬 수", `${fanCount(player)}/100`], ["평판", `${player.reputation}/100`],
+        ["잠재력", player.potential || "-"]
+      ];
+      els.identityGrid.innerHTML = [...baseMetrics, ...currentSeasonCardMetrics(player)].map(([label, value]) => metricHtml(label, value)).join("");
+      const keys = player.role === "pitcher" ? ["stuff", "command", "stamina", "defense"] : ["contact", "power", "speed", "defense"];
+      els.skillBars.innerHTML = keys.map((key) => {
+        const value = player.skills[key] || 0;
+        return `<div class="bar-row"><span>${skillLabels[key]}</span><div class="bar-track"><div class="bar-fill" style="--w:${value}%"></div></div><span>${value || "-"}</span></div>`;
+      }).join("");
+    }
+
+    function currentSeasonCardMetrics(player) {
+      const season = state.currentSeason;
+      if (!season || state.phase === "seasonReview") return [];
+      if (player.role === "pitcher") {
+        return [
+          ["이번 시즌", `${season.age}세`],
+          ["G/GS", `${season.regular.games ?? "-"} / ${season.regular.starts ?? "-"}`],
+          ["W-L", `${season.regular.wins ?? "-"}-${season.regular.losses ?? "-"}`],
+          ["SV/HLD", `${season.regular.saves ?? "-"} / ${season.regular.holds ?? "-"}`],
+          ["IP", season.regular.innings ?? "-"],
+          ["K", season.regular.strikeouts ?? "-"],
+          ["ERA", season.regular.era ?? "-"],
+          ["순위/PO", `${season.rank?.label ?? "-"} / ${season.playoff.result ?? "-"}`]
+        ];
+      }
+      const pa = Number(season.regular.pa || 0);
+      const hits = Number(season.regular.hits || 0);
+      const ab = pa ? Math.max(hits, Math.round(pa * 0.88)) : 0;
+      const liveAvg = ab ? formatRate(hits / ab) : "-";
+      return [
+        ["이번 시즌", `${season.age}세`],
+        ["PA", season.regular.pa ?? "-"],
+        ["H", season.regular.hits ?? "-"],
+        ["HR", season.regular.hr ?? "-"],
+        ["SB", season.regular.steals ?? "-"],
+        ["AVG/OBP", `${season.regular.avg ?? liveAvg} / ${season.regular.obp ?? "-"}`],
+        ["SLG/OPS", `${season.regular.slg ?? "-"} / ${season.regular.ops ?? "-"}`],
+        ["순위/PO", `${season.rank?.label ?? "-"} / ${season.playoff.result ?? "-"}`]
+      ];
+    }
+
+    function renderActions() {
+      if (state.retired) {
+        els.mainSpinBtn.textContent = "커리어 종료";
+        els.contractBtn.disabled = true;
+        els.rouletteMode.textContent = "은퇴";
+        return;
+      }
+      if (state.phase === "amateurPerformance") {
+        els.mainSpinBtn.textContent = state.player.amateurType === "college" ? "대학 활약 룰렛" : "고교 활약 룰렛";
+        els.contractBtn.disabled = true;
+        els.rouletteMode.textContent = "학교 활약";
+        return;
+      }
+      if (state.phase === "initialStats") {
+        const next = state.player.skillQueue[0];
+        els.mainSpinBtn.textContent = `${skillLabels[next]} 룰렛`;
+        els.contractBtn.disabled = true;
+        els.rouletteMode.textContent = "능력치";
+        return;
+      }
+      if (state.phase === "draft") {
+        els.mainSpinBtn.textContent = "드래프트 룰렛";
+        els.contractBtn.disabled = true;
+        els.rouletteMode.textContent = "드래프트";
+        return;
+      }
+      if (state.phase === "roleChoice") {
+        els.mainSpinBtn.textContent = "보직 변경 수락";
+        els.contractBtn.textContent = "현재 보직 유지";
+        els.contractBtn.disabled = busy;
+        els.rouletteMode.textContent = "보직 선택";
+        return;
+      }
+      if (state.phase === "seasonReview") {
+        els.mainSpinBtn.textContent = "다음 진행";
+        els.contractBtn.disabled = true;
+        els.rouletteMode.textContent = "시즌 결산";
+        return;
+      }
+      if (state.phase === "faDecision") {
+        els.mainSpinBtn.textContent = "FA 선택 룰렛";
+        els.contractBtn.disabled = true;
+        els.rouletteMode.textContent = "FA 선택";
+        return;
+      }
+      if (state.phase === "contractLeague") {
+        els.mainSpinBtn.textContent = "FA 리그 룰렛";
+        els.contractBtn.disabled = true;
+        els.rouletteMode.textContent = "FA 리그";
+        return;
+      }
+      if (state.freeAgent || state.phase === "contract" || !state.player.assignment) {
+        els.mainSpinBtn.textContent = state.player.assignment ? "계약 룰렛" : "첫 소속팀 룰렛";
+        els.contractBtn.textContent = "계약 룰렛";
+        els.contractBtn.disabled = busy;
+        els.rouletteMode.textContent = "소속";
+        return;
+      }
+      const step = state.currentSeason?.step;
+      els.mainSpinBtn.textContent = step ? (step === "settlement" ? "시즌 결산 적용" : `${stepTitle(step)} 굴리기`) : "시즌 시작";
+      els.contractBtn.textContent = "계약 중";
+      els.contractBtn.disabled = true;
+      els.rouletteMode.textContent = step ? stepTitle(step) : "시즌";
+    }
+
+    function renderSteps() {
+      const player = state.player;
+      let sequence;
+      if (state.phase === "amateurPerformance") sequence = ["amateurPerformance"];
+      else if (state.phase === "initialStats") sequence = player.skillQueue.map((key) => `stat:${key}`);
+      else if (state.phase === "draft") sequence = ["draft"];
+      else if (state.phase === "roleChoice") sequence = ["roleChoice"];
+      else if (state.phase === "faDecision") sequence = ["faDecision"];
+      else if (state.phase === "contractLeague") sequence = ["contractLeague"];
+      else {
+        const current = state.currentSeason;
+        sequence = current ? stepSequence(player.role, current.done.includes("retirement") || current.step === "retirement", Boolean(current.rank?.playoff || current.step?.startsWith("playoff"))) : stepSequence(player.role, player.age >= 36, false);
+      }
+      els.stageTag.textContent = state.currentSeason?.step ? stepTitle(state.currentSeason.step) : state.phase === "amateurPerformance" ? "학교 활약" : state.phase === "initialStats" ? "능력치" : state.phase === "draft" ? "드래프트" : state.phase === "roleChoice" ? "보직 선택" : state.phase === "faDecision" ? "FA 선택" : state.phase === "contractLeague" ? "FA 리그" : "대기";
+      els.stepList.innerHTML = sequence.map((step, index) => {
+        const isStat = step.startsWith("stat:");
+        const key = isStat ? step.split(":")[1] : step;
+        const label = isStat ? `${skillLabels[key]} 결정` : step === "amateurPerformance" ? (player.amateurType === "college" ? "대학 활약" : "고교 활약") : step === "draft" ? "드래프트" : step === "roleChoice" ? "보직 변경 선택" : step === "faDecision" ? "FA 선택" : step === "contractLeague" ? "FA 리그 선택" : stepTitle(step);
+        const active = isStat ? player.skillQueue[0] === key
+          : step === "amateurPerformance" ? state.phase === "amateurPerformance"
+            : step === "draft" ? state.phase === "draft"
+              : step === "roleChoice" ? state.phase === "roleChoice"
+                : step === "faDecision" ? state.phase === "faDecision"
+                  : step === "contractLeague" ? state.phase === "contractLeague"
+                    : state.currentSeason?.step === step;
+        const done = !isStat && state.currentSeason?.done.includes(step);
+        return `<div class="step-item ${active ? "is-active" : ""} ${done ? "is-done" : ""}">
+          <div class="step-dot">${index + 1}</div><div><strong>${label}</strong><p class="subtitle">${isStat ? "40~70 룰렛" : step === "amateurPerformance" ? "학교 성적 기반 능력치 산정" : step === "draft" ? "스탯 기반 지명 순번" : step === "roleChoice" ? (player.roleOffer?.reason || "보직 변경 제안") : step === "faDecision" ? "재계약, 국내 FA, 해외 FA" : step === "contractLeague" ? "해외 FA 대상 리그" : stepCopy(step)}</p></div>
+        </div>`;
+      }).join("");
+    }
+
+    function renderSeasonSummary() {
+      const current = state.currentSeason;
+      if (!current) {
+        const latest = state.history[0];
+        els.seasonTag.textContent = latest ? `${latest.age}세 시즌` : "없음";
+        els.seasonSummary.innerHTML = latest ? seasonRecordHtml(latest) : `<p class="empty-state">아직 기록된 시즌이 없습니다.</p>`;
+        return;
+      }
+      els.seasonTag.textContent = `${current.age}세 시즌`;
+      const items = state.player.role === "pitcher"
+        ? [["소속리그", current.assignment.levelLabel], ["G", current.regular.games ?? "-"], ["GS", current.regular.starts ?? "-"], ["W", current.regular.wins ?? "-"], ["L", current.regular.losses ?? "-"], ["SV", current.regular.saves ?? "-"], ["BS", current.regular.blownSaves ?? "-"], ["HLD", current.regular.holds ?? "-"], ["IP", current.regular.innings ?? "-"], ["K", current.regular.strikeouts ?? "-"], ["ERA", current.regular.era ?? "-"], ["WAR", current.regular.war ?? "-"], ["순위", current.rank?.label ?? "-"], ["PO", current.playoff.result ?? "-"]]
+        : [["소속리그", current.assignment.levelLabel], ["PA", current.regular.pa ?? "-"], ["H", current.regular.hits ?? "-"], ["HR", current.regular.hr ?? "-"], ["SB", current.regular.steals ?? "-"], ["WAR", current.regular.war ?? "-"], ["순위", current.rank?.label ?? "-"], ["PO", current.playoff.result ?? "-"]];
+      els.seasonSummary.innerHTML = `<div class="stat-grid">${items.map(([label, value]) => statCell(label, value)).join("")}</div>`;
+    }
+
+    function renderSettlementReview() {
+      if (state.phase !== "seasonReview") {
+        els.settlementBoard.classList.add("is-hidden");
+        return;
+      }
+      const row = state.history[0];
+      if (!row) {
+        els.settlementBoard.classList.remove("is-hidden");
+        els.settlementBody.innerHTML = `<p class="empty-state">아직 결산할 시즌이 없습니다.</p>`;
+        return;
+      }
+      els.settlementBoard.classList.remove("is-hidden");
+      els.settlementTag.textContent = `${row.age}세 시즌`;
+      const tab = state.reviewTab || "summary";
+      const tabs = [["summary", "시즌 요약"], ["career", "커리어"]].map(([key, label]) => `<button type="button" class="${tab === key ? "is-active" : ""}" data-review-tab="${key}">${label}</button>`).join("");
+      const body = tab === "career" ? careerReviewHtml() : seasonReviewHtml(row);
+      els.settlementBody.innerHTML = `<div class="review-tabs">${tabs}</div>${body}<div class="settlement-actions"><button class="continue-review-btn" type="button" data-continue-review>${nextReviewLabel()}</button></div>`;
+    }
+
+    function seasonReviewHtml(row) {
+      const awards = row.awards.length ? row.awards.map((award) => `<div class="award-chip">${escapeHtml(award)}</div>`).join("") : `<p class="empty-state">수상 기록은 없습니다.</p>`;
+      const changes = row.changes.map((change) => `<div class="change-row"><span>${escapeHtml(change.label)}</span><strong>${change.old} → ${change.now} (${signed(change.diff, 0)})</strong></div>`).join("");
+      return `<div class="settlement-hero">
+        <div class="result-title"><div><h2>${row.age}세 시즌 결산</h2><p class="subtitle">${escapeHtml(row.team)} · ${escapeHtml(row.level)} · ${escapeHtml(row.rank)} · ${escapeHtml(row.playoff)}</p></div><span class="pill gold">점수 ${row.score}</span></div>
+        <div class="stat-grid">${statCell("시즌", row.summary)}${statCell("OVR", `${row.oldOverall}→${row.newOverall}`)}${statCell("WAR", row.regular.war ?? "-")}${statCell("가치", money(row.newValue))}${statCell("계약", row.contract?.text || "-")}${statCell("이동", row.movement)}${statCell("팀 수준", `${row.oldTeamLevel ?? row.oldTeamExpectation}→${row.newTeamLevel ?? row.newTeamExpectation}`)}${statCell("팬 수", `${row.oldFanCount ?? row.oldFanExpectation}→${row.newFanCount ?? row.newFanExpectation}`)}</div>
+      </div>
+      <h3 style="margin-top:14px">수상</h3><div class="awards">${awards}</div>
+      <h3 style="margin-top:14px">스탯 변화</h3><div class="changes">${changes}</div>`;
+    }
+
+    function careerReviewHtml() {
+      const groups = careerTeamGroups();
+      const selectedIndex = clamp(Number(state.reviewTeamIndex || 0), 0, Math.max(0, groups.length - 1));
+      state.reviewTeamIndex = selectedIndex;
+      const selected = groups[selectedIndex];
+      const teamButtons = groups.map((group, index) => `<button type="button" class="team-row ${index === selectedIndex ? "is-active" : ""}" data-team-index="${index}"><strong>${escapeHtml(group.team)}</strong><span>${group.years} · ${escapeHtml(group.contract || "-")}</span></button>`).join("");
+      const detail = selected ? selected.records.map((row) => `<div class="season-detail"><strong>${row.age}세 · ${escapeHtml(row.level)} · ${escapeHtml(row.rank)}</strong><span>${escapeHtml(row.summary)} · ${escapeHtml(row.playoff)} · ${escapeHtml(row.movement)}</span>${row.awards.length ? `<div class="awards">${row.awards.map((award) => `<div class="award-chip">${escapeHtml(award)}</div>`).join("")}</div>` : ""}</div>`).join("") : `<p class="empty-state">선택된 팀 기록이 없습니다.</p>`;
+      const totals = getCareerTotals();
+      const totalCells = state.player.role === "pitcher"
+        ? [["IP", round1(totals.ip)], ["W", totals.wins], ["SV", totals.saves], ["BS", totals.blownSaves], ["HLD", totals.holds], ["K", totals.k], ["WAR", round1(totals.war)]]
+        : [["PA", totals.pa], ["H", totals.hits], ["HR", totals.hr], ["SB", totals.steals], ["WAR", round1(totals.war)]];
+      return `<div class="settlement-hero"><div class="result-title"><div><h2>커리어 돌아보기</h2><p class="subtitle">거쳐간 팀을 선택하면 해당 팀에서의 연도별 기록과 수상 내역을 확인할 수 있습니다.</p></div><span class="pill">${state.history.length}시즌</span></div><div class="stat-grid">${totalCells.map(([label, value]) => statCell(label, value)).join("")}</div></div>
+        <div class="career-browser" style="margin-top:12px"><div class="team-list">${teamButtons}</div><div class="team-detail">${detail}</div></div>`;
+    }
+
+    function careerTeamGroups() {
+      const map = new Map();
+      [...state.history].reverse().forEach((row) => {
+        const key = `${row.org}|${row.team}`;
+        if (!map.has(key)) map.set(key, { team: row.team, org: row.org, records: [], contracts: new Set() });
+        const group = map.get(key);
+        group.records.push(row);
+        if (row.contract?.text) group.contracts.add(row.contract.text);
+      });
+      return Array.from(map.values()).map((group) => {
+        const ages = group.records.map((row) => row.age);
+        const min = Math.min(...ages);
+        const max = Math.max(...ages);
+        return { ...group, years: min === max ? `${min}세` : `${min}-${max}세`, contract: Array.from(group.contracts).at(-1) || "-" };
+      });
+    }
+
+    function nextReviewLabel() {
+      if (state.pendingAfterReviewPhase === "roleChoice") return "보직 선택으로";
+      if (state.pendingAfterReviewPhase === "faDecision") return "FA 선택으로";
+      return "다음 시즌으로";
+    }
+
+    function continueAfterReview() {
+      state.phase = state.pendingAfterReviewPhase || (state.freeAgent ? "faDecision" : "season");
+      state.pendingAfterReviewPhase = null;
+      state.reviewTab = "summary";
+      saveCareer();
+      renderAll();
+    }
+
+    function seasonRecordHtml(row) {
+      const awards = row.awards.length ? `<div class="awards">${row.awards.map((award) => `<div class="award-chip">${escapeHtml(award)}</div>`).join("")}</div>` : `<p class="empty-state">수상 기록은 없습니다.</p>`;
+      const changes = `<div class="changes">${row.changes.map((change) => `<div class="change-row"><span>${escapeHtml(change.label)}</span><strong>${change.old} → ${change.now} (${signed(change.diff, 0)})</strong></div>`).join("")}</div>`;
+      return `<div class="result-title"><div><h2>${row.age}세 시즌 · ${escapeHtml(row.team)}</h2><p class="subtitle">${escapeHtml(row.summary)} · ${escapeHtml(row.rank)} · ${escapeHtml(row.playoff)} · ${escapeHtml(row.movement)}</p></div><span class="pill gold">점수 ${row.score}</span></div>
+        <div class="stat-grid">${statCell("OVR", `${row.oldOverall}→${row.newOverall}`)}${statCell("가치", money(row.newValue))}${statCell("계약", row.contract?.text || "-")}${statCell("WAR", row.regular.war ?? "-")}${statCell("레벨", row.level)}${statCell("팀 수준", `${row.oldTeamLevel ?? row.oldTeamExpectation}→${row.newTeamLevel ?? row.newTeamExpectation}`)}${statCell("팬 수", `${row.oldFanCount ?? row.oldFanExpectation}→${row.newFanCount ?? row.newFanExpectation}`)}${statCell("누적 수상", state.player.awards.length)}</div>
+        <h3 style="margin-top:12px">수상</h3>${awards}<h3 style="margin-top:12px">스탯 변화</h3>${changes}`;
+    }
+
+    function renderTotals() {
+      const totals = getCareerTotals();
+      els.careerSpan.textContent = `${state.history.length}시즌`;
+      els.careerTotals.innerHTML = state.player.role === "pitcher"
+        ? [["IP", round1(totals.ip)], ["W", totals.wins], ["SV", totals.saves], ["BS", totals.blownSaves], ["HLD", totals.holds], ["K", totals.k], ["WAR", round1(totals.war)], ["평균 ERA", totals.ip ? (totals.er * 9 / totals.ip).toFixed(2) : "-"], ["수상", state.player.awards.length]].map(([a,b]) => statCell(a,b)).join("")
+        : [["PA", totals.pa], ["H", totals.hits], ["HR", totals.hr], ["SB", totals.steals], ["WAR", round1(totals.war)], ["수상", state.player.awards.length]].map(([a,b]) => statCell(a,b)).join("");
+    }
+
+    function renderHistory() {
+      els.historyCount.textContent = `${state.history.length}시즌`;
+      if (state.player.role === "pitcher") {
+        els.historyHead.innerHTML = "<tr><th>시즌</th><th>팀</th><th>레벨</th><th>순위</th><th>G</th><th>GS</th><th>W</th><th>L</th><th>SV</th><th>BS</th><th>HLD</th><th>IP</th><th>K</th><th>ERA</th><th>WHIP</th><th>WAR</th><th>계약</th><th>PO</th><th>OVR</th><th>이동</th></tr>";
+        els.historyBody.innerHTML = state.history.length ? state.history.map((row) => `<tr><td>${row.age}세</td><td>${escapeHtml(row.team)}</td><td>${escapeHtml(row.level)}</td><td>${escapeHtml(row.rank)}</td><td>${row.regular.games || 0}</td><td>${row.regular.starts || 0}</td><td>${row.regular.wins || 0}</td><td>${row.regular.losses || 0}</td><td>${row.regular.saves || 0}</td><td>${row.regular.blownSaves || 0}</td><td>${row.regular.holds || 0}</td><td>${row.regular.innings || 0}</td><td>${row.regular.strikeouts || 0}</td><td>${row.regular.era || "-"}</td><td>${row.regular.whip || "-"}</td><td>${row.regular.war ?? "-"}</td><td>${escapeHtml(row.contract?.text || "-")}</td><td>${escapeHtml(row.playoff)}</td><td>${row.oldOverall}→${row.newOverall}</td><td>${escapeHtml(row.movement)}</td></tr>`).join("") : `<tr><td colspan="20">아직 기록된 시즌이 없습니다.</td></tr>`;
+      } else {
+        els.historyHead.innerHTML = "<tr><th>시즌</th><th>팀</th><th>레벨</th><th>순위</th><th>PA</th><th>AB</th><th>H</th><th>2B</th><th>3B</th><th>HR</th><th>RBI</th><th>SB</th><th>AVG</th><th>OBP</th><th>SLG</th><th>OPS</th><th>WAR</th><th>계약</th><th>PO</th><th>OVR</th><th>이동</th></tr>";
+        els.historyBody.innerHTML = state.history.length ? state.history.map((row) => `<tr><td>${row.age}세</td><td>${escapeHtml(row.team)}</td><td>${escapeHtml(row.level)}</td><td>${escapeHtml(row.rank)}</td><td>${row.regular.pa || 0}</td><td>${row.regular.ab || 0}</td><td>${row.regular.hits || 0}</td><td>${row.regular.doubles || 0}</td><td>${row.regular.triples || 0}</td><td>${row.regular.hr || 0}</td><td>${row.regular.rbi || 0}</td><td>${row.regular.steals || 0}</td><td>${row.regular.avg || "-"}</td><td>${row.regular.obp || "-"}</td><td>${row.regular.slg || "-"}</td><td>${row.regular.ops || "-"}</td><td>${row.regular.war ?? "-"}</td><td>${escapeHtml(row.contract?.text || "-")}</td><td>${escapeHtml(row.playoff)}</td><td>${row.oldOverall}→${row.newOverall}</td><td>${escapeHtml(row.movement)}</td></tr>`).join("") : `<tr><td colspan="21">아직 기록된 시즌이 없습니다.</td></tr>`;
+      }
+    }
+
+    function renderLogs() {
+      els.logCount.textContent = `${state.logs.length}`;
+      els.timeline.innerHTML = state.logs.length ? state.logs.slice(0, 18).map((log) => `<div class="log-item">${escapeHtml(log)}</div>`).join("") : `<p class="empty-state">아직 로그가 없습니다.</p>`;
+    }
+
+    function getCareerTotals() {
+      return state.history.reduce((totals, row) => {
+        if (row.role === "pitcher") {
+          const ip = Number(row.regular.innings || 0);
+          totals.ip += ip;
+          totals.k += Number(row.regular.strikeouts || 0);
+          totals.er += ip * Number(row.regular.era || 0) / 9;
+          totals.wins += Number(row.regular.wins || 0);
+          totals.saves += Number(row.regular.saves || 0);
+          totals.blownSaves += Number(row.regular.blownSaves || 0);
+          totals.holds += Number(row.regular.holds || 0);
+          totals.war += Number(row.regular.war || 0);
+        } else {
+          totals.pa += Number(row.regular.pa || 0);
+          totals.hits += Number(row.regular.hits || 0);
+          totals.hr += Number(row.regular.hr || 0);
+          totals.steals += Number(row.regular.steals || 0);
+          totals.war += Number(row.regular.war || 0);
+        }
+        return totals;
+      }, { pa: 0, hits: 0, hr: 0, steals: 0, ip: 0, k: 0, er: 0, wins: 0, saves: 0, blownSaves: 0, holds: 0, war: 0 });
+    }
+
+    function contractText(player) {
+      if (!player || !player.contractYears) return "계약 전";
+      const base = `${player.contractYears}년 · 연봉 ${money(player.salary)}`;
+      return player.contractBonus ? `${base} · 계약금 ${money(player.contractBonus)}` : base;
+    }
+    function metricHtml(label, value) { return `<div class="metric"><span>${escapeHtml(label)}</span><strong>${escapeHtml(String(value))}</strong></div>`; }
+    function statCell(label, value) { return `<div class="stat-cell"><span>${escapeHtml(label)}</span><strong>${escapeHtml(String(value))}</strong></div>`; }
+    function addLog(message) { state.logs.unshift(message); }
+    function saveCareer() { state.savedAt = new Date().toISOString(); localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); showSavedButton(); }
+    function loadCareer() { try { const raw = localStorage.getItem(STORAGE_KEY); return raw ? JSON.parse(raw) : null; } catch { return null; } }
+    function showSavedButton() { els.loadCareerBtn.classList.toggle("is-hidden", !localStorage.getItem(STORAGE_KEY)); }
+    function money(value) {
+      const amount = Number(value) || 0;
+      if (amount >= 1000) return `${(amount / 1000).toFixed(1)}조`;
+      if (amount >= 10) return `${Math.round(amount).toLocaleString("ko-KR")}억`;
+      if (amount >= 1) return `${amount.toFixed(1).replace(".0", "")}억`;
+      return `${Math.max(500, Math.round(amount * 10000)).toLocaleString("ko-KR")}만원`;
+    }
+    function round2(value) { return Math.round(value * 100) / 100; }
+    function formatRate(value) { return Number(value).toFixed(3).replace(/^0/, ""); }
+    function signed(value, digits = 0) { const fixed = Number(value).toFixed(digits); return value > 0 ? `+${fixed}` : fixed; }
+    function trimLabel(value, max) { const text = String(value); return text.length > max ? `${text.slice(0, Math.max(1, max - 1))}…` : text; }
+    function formatRange(min, max, lowerIsBetter) { return lowerIsBetter ? `${min.toFixed(2)}-${max.toFixed(2)}` : `${Math.round(min)}-${Math.round(max)}`; }
+    function escapeHtml(value) { return String(value).replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;").replaceAll("'", "&#039;"); }
+    function flashResult(title, copy) { els.resultPanel.innerHTML = `<strong>${escapeHtml(title)}</strong><p>${escapeHtml(copy)}</p>`; }
+
+    init();
+  </script>
+</body>
+</html>
